@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/1 - API/">
+    <Project Path="Zeno/Zeno.API.csproj" />
+  </Folder>
+  <Folder Name="/2 - Application/">
+    <Project Path="Zeno.Application/Zeno.Application.csproj" />
+  </Folder>
+  <Folder Name="/3 - Domain/">
+    <Project Path="Zeno.Domain/Zeno.Domain.csproj" />
+  </Folder>
+  <Folder Name="/4 - Infrastructure/" />
+</Solution>
