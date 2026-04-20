@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Zeno.Application.Interfaces;
-using Zeno.Application.Requests;
 using Zeno.Domain.Wallet;
 
 namespace Zeno.Controllers;
@@ -44,11 +43,5 @@ public class WalletController : AppControllerBase
     public Task<IActionResult> Delete(Guid id)
     {
         return HandleAsync(() => _walletService.DeleteWallet(id), _ => NoContent());
-    }
-
-    [HttpPost("{id:guid}/salary")]
-    public Task<IActionResult> AddSalary(Guid id, [FromBody] AddSalaryRequest request)
-    {
-        return HandleAsync(() => _walletService.AddSalary(id, request.Amount), data => Ok(data));
     }
 }

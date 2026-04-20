@@ -24,4 +24,23 @@ public abstract class AppControllerBase : ControllerBase
             return BadRequest(errors);
         }
     }
+
+    protected async Task<IActionResult> HandleAsync(Func<Task> action, IActionResult onSuccess)
+    {
+        try
+        {
+            await action();
+            return onSuccess;
+        }
+        catch (AppValidationException ex)
+        {
+            var errors = ex.ValidationResult.Errors.Select(e => new ValidationError
+            {
+                Property = e.PropertyName,
+                Error = e.ErrorMessage
+            });
+
+            return BadRequest(errors);
+        }
+    }
 }
