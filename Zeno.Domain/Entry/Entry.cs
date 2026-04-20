@@ -9,15 +9,19 @@ namespace Zeno.Domain.Entry
     {
         public Guid? Id { get; set; }
 
-        public string Title { get; set; }
+        public string Title { get; set; } = string.Empty;
 
         public decimal Value { get; set; }
 
         public EntryType Type  { get; set; }
 
-        public string Description { get; set; }
+        public string Description { get; set; } = string.Empty;
 
         public Category Category { get; set; }
+
+        public DateTime Date { get; set; } = DateTime.UtcNow;
+
+        public Guid? WalletId { get; set; }
 
         public Entry() { }
     }

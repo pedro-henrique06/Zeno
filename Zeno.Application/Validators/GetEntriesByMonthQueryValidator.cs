@@ -14,5 +14,8 @@ public class GetEntriesByMonthQueryValidator : AbstractValidator<GetEntriesByMon
         RuleFor(x => x.Year)
             .NotNull().WithMessage("O ano é obrigatório.")
             .InclusiveBetween(2000, 2100).WithMessage("O ano deve estar entre 2000 e 2100.");
+
+        RuleFor(x => x.WalletId)
+            .NotNull().WithMessage("A carteira é obrigatória.");
     }
 }

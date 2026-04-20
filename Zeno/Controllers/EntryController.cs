@@ -1,15 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
-using Zeno.Application.Exceptions;
 using Zeno.Application.Interfaces;
 using Zeno.Application.Requests;
 using Zeno.Domain.Entry;
-using Zeno.Responses;
 
 namespace Zeno.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class EntryController : ControllerBase
+public class EntryController : AppControllerBase
 {
     private readonly IEntryService _entryService;
 
@@ -19,54 +17,27 @@ public class EntryController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetByMonth([FromQuery] int? month, [FromQuery] int? year)
+    public Task<IActionResult> GetByMonth([FromQuery] int? month, [FromQuery] int? year, [FromQuery] Guid? walletId)
     {
-        var query = new GetEntriesByMonthQuery { Month = month, Year = year };
-        var result = await ExecuteAsync(async () => await _entryService.GetEntriesByMonth(query));
-
-        return result.IsValid ? Ok(result.Data) : BadRequest(result.Errors);
+        var query = new GetEntriesByMonthQuery { Month = month, Year = year, WalletId = walletId };
+        return HandleAsync(() => _entryService.GetEntriesByMonth(query), data => Ok(data));
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] Entry entry)
+    public Task<IActionResult> Create([FromBody] Entry entry)
     {
-        var result = await ExecuteAsync(async () => await _entryService.CreateEntry(entry));
-
-        return result.IsValid ? CreatedAtAction(nameof(GetByMonth), new { id = entry.Id }, result.Data) : BadRequest(result.Errors);
+        return HandleAsync(() => _entryService.CreateEntry(entry), data => CreatedAtAction(nameof(GetByMonth), new { id = data.Id }, data));
     }
 
     [HttpPut]
-    public async Task<IActionResult> Update([FromBody] Entry entry)
+    public Task<IActionResult> Update([FromBody] Entry entry)
     {
-        var result = await ExecuteAsync(async () => await _entryService.UpdateEntry(entry));
-
-        return result.IsValid ? NoContent() : BadRequest(result.Errors);
+        return HandleAsync(() => _entryService.UpdateEntry(entry), _ => NoContent());
     }
 
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Delete(Guid id)
+    public Task<IActionResult> Delete(Guid id)
     {
-        var result = await ExecuteAsync(async () => await _entryService.DeleteEntry(id));
-
-        return result.IsValid ? NoContent() : BadRequest(result.Errors);
-    }
-
-    private async Task<ServiceResult<T>> ExecuteAsync<T>(Func<Task<T>> action)
-    {
-        try
-        {
-            var data = await action();
-            return ServiceResult<T>.Ok(data);
-        }
-        catch (AppValidationException ex)
-        {
-            var errors = ex.ValidationResult.Errors.Select(e => new ValidationError
-            {
-                Property = e.PropertyName,
-                Error = e.ErrorMessage
-            });
-
-            return ServiceResult<T>.Fail(errors);
-        }
+        return HandleAsync(() => _entryService.DeleteEntry(id), _ => NoContent());
     }
 }

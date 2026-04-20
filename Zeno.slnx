@@ -8,5 +8,7 @@
   <Folder Name="/3 - Domain/">
     <Project Path="Zeno.Domain/Zeno.Domain.csproj" />
   </Folder>
-  <Folder Name="/4 - Infrastructure/" />
+  <Folder Name="/4 - Infrastructure/">
+    <Project Path="Zeno.Infrastructure.SQL/Zeno.Infrastructure.SQL.csproj" Id="508d79dc-d0d0-4aff-8d23-086400ba8332" />
+  </Folder>
 </Solution>

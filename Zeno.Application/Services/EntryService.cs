@@ -4,16 +4,19 @@ using Zeno.Application.Interfaces;
 using Zeno.Application.Requests;
 using Zeno.Application.Validators;
 using Zeno.Domain.Entry;
+using Zeno.Domain.Interfaces;
 
 namespace Zeno.Application.Services;
 
 public class EntryService : IEntryService
 {
-    private readonly IEnumerable<IValidator<object>> _validators;
+    private readonly IServiceProvider _serviceProvider;
+    private readonly IEntryRepository _repository;
 
-    public EntryService(IEnumerable<IValidator<object>> validators)
+    public EntryService(IServiceProvider serviceProvider, IEntryRepository repository)
     {
-        _validators = validators;
+        _serviceProvider = serviceProvider;
+        _repository = repository;
     }
 
     public async Task<Entry> CreateEntry(Entry entry)
@@ -22,14 +25,14 @@ public class EntryService : IEntryService
 
         entry.Id = Guid.NewGuid();
 
-        return entry;
+        return await _repository.CreateAsync(entry);
     }
 
     public async Task<Entry> UpdateEntry(Entry entry)
     {
         await ValidateAsync<UpdateEntryValidator, Entry>(entry);
 
-        return entry;
+        return await _repository.UpdateAsync(entry);
     }
 
     public async Task<Entry> DeleteEntry(Guid id)
@@ -38,6 +41,8 @@ public class EntryService : IEntryService
 
         await ValidateAsync<DeleteEntryValidator, Entry>(entry);
 
+        await _repository.DeleteAsync(id);
+
         return entry;
     }
 
@@ -45,12 +50,12 @@ public class EntryService : IEntryService
     {
         await ValidateAsync<GetEntriesByMonthQueryValidator, GetEntriesByMonthQuery>(query);
 
-        return Enumerable.Empty<Entry>();
+        return await _repository.GetByMonthAsync(query.Month!.Value, query.Year!.Value, query.WalletId!.Value);
     }
 
     private async Task ValidateAsync<TValidator, T>(T instance) where TValidator : IValidator<T>
     {
-        var validator = _validators.OfType<TValidator>().First();
+        var validator = (TValidator)_serviceProvider.GetService(typeof(TValidator))!;
         var result = await validator.ValidateAsync(instance!);
 
         if (!result.IsValid)

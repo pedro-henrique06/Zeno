@@ -19,5 +19,8 @@ public class EntryValidator : AbstractValidator<Entry>
 
         RuleFor(x => x.Category)
             .NotEqual(Domain.Enum.Category.None).WithMessage("A categoria é obrigatória.");
+
+        RuleFor(x => x.WalletId)
+            .NotNull().WithMessage("A carteira é obrigatória.");
     }
 }

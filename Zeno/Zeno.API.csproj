@@ -8,11 +8,12 @@
 
   <ItemGroup>
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="8.1.2" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Zeno.Application\Zeno.Application.csproj" />
+    <ProjectReference Include="..\Zeno.Infrastructure.SQL\Zeno.Infrastructure.SQL.csproj" />
   </ItemGroup>
 
 </Project>

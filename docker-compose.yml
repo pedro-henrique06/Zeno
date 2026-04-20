@@ -1,0 +1,19 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: zeno_sqlserver
+    user: "0:0"
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "Z3n0@Sql2024!"
+      MSSQL_PID: "Express"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql/data
+      - ./docker/init.sql:/tmp/init.sql
+      - ./docker/entrypoint.sh:/tmp/entrypoint.sh
+    entrypoint: /bin/bash /tmp/entrypoint.sh
+
+volumes:
+  sqlserver_data:
