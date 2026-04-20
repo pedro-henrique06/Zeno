@@ -9,4 +9,5 @@ public interface IWalletRepository
     Task<WalletEntity> CreateAsync(WalletEntity wallet);
     Task<WalletEntity> UpdateAsync(WalletEntity wallet);
     Task DeleteAsync(Guid id);
+    Task AddBalanceAsync(Guid id, decimal amount);
 }

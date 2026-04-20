@@ -1,6 +1,7 @@
 using FluentValidation;
 using Zeno.Application.Exceptions;
 using Zeno.Application.Interfaces;
+using Zeno.Application.Requests;
 using Zeno.Application.Validators;
 using Zeno.Domain.Interfaces;
 using Zeno.Domain.Wallet;
@@ -56,6 +57,23 @@ public class WalletService : IWalletService
     public async Task<Wallet?> GetWalletById(Guid id)
     {
         return await _repository.GetByIdAsync(id);
+    }
+
+    public async Task<Wallet> AddSalary(Guid walletId, decimal amount)
+    {
+        await ValidateAsync<AddSalaryRequestValidator, AddSalaryRequest>(new AddSalaryRequest { Amount = amount });
+
+        var wallet = await _repository.GetByIdAsync(walletId)
+            ?? throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new(nameof(walletId), "Carteira não encontrada.")
+                }));
+
+        await _repository.AddBalanceAsync(walletId, amount);
+
+        wallet.Balance += amount;
+        return wallet;
     }
 
     private async Task ValidateAsync<TValidator, T>(T instance) where TValidator : IValidator<T>

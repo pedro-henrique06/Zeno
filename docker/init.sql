@@ -13,9 +13,28 @@ BEGIN
         Id UNIQUEIDENTIFIER PRIMARY KEY,
         Name NVARCHAR(50) NOT NULL,
         Description NVARCHAR(200) NOT NULL,
-        InitialBalance DECIMAL(18,2) NOT NULL,
+        Balance DECIMAL(18,2) NOT NULL DEFAULT 0,
         CreatedAt DATETIME NOT NULL
     );
+END
+ELSE
+BEGIN
+    IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Wallets' AND COLUMN_NAME = 'InitialBalance')
+    BEGIN
+        IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Wallets' AND COLUMN_NAME = 'Balance')
+        BEGIN
+            EXEC sp_rename 'Wallets.InitialBalance', 'Balance', 'COLUMN';
+        END
+        ELSE
+        BEGIN
+            ALTER TABLE Wallets DROP COLUMN InitialBalance;
+        END
+    END
+
+    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Wallets' AND COLUMN_NAME = 'Balance')
+    BEGIN
+        ALTER TABLE Wallets ADD Balance DECIMAL(18,2) NOT NULL DEFAULT 0;
+    END
 END
 GO
 
