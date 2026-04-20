@@ -9,4 +9,5 @@ public interface IWalletService
     Task<Wallet> DeleteWallet(Guid id);
     Task<IEnumerable<Wallet>> GetAllWallets();
     Task<Wallet?> GetWalletById(Guid id);
+    Task<Wallet> AddSalary(Guid walletId, decimal amount);
 }
