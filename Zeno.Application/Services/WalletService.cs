@@ -54,6 +54,11 @@ public class WalletService : IWalletService
         return await _repository.GetAllAsync();
     }
 
+    public async Task<IEnumerable<Wallet>> GetWalletsByUser(Guid userId)
+    {
+        return await _repository.GetByUserIdAsync(userId);
+    }
+
     public async Task<Wallet?> GetWalletById(Guid id)
     {
         return await _repository.GetByIdAsync(id);

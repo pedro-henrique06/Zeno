@@ -6,6 +6,7 @@ public interface ISalaryRepository
 {
     Task<SalaryEntity?> GetByIdAsync(Guid id);
     Task<IEnumerable<SalaryEntity>> GetByWalletAsync(Guid walletId);
+    Task<IEnumerable<SalaryEntity>> GetByUserIdAsync(Guid userId);
     Task<IEnumerable<SalaryEntity>> GetPendingSalariesAsync(int dayOfMonth);
     Task<SalaryEntity> CreateAsync(SalaryEntity salary);
     Task<SalaryEntity> UpdateAsync(SalaryEntity salary);

@@ -21,6 +21,12 @@ public class WalletController : AppControllerBase
         return HandleAsync(() => _walletService.GetAllWallets(), data => Ok(data));
     }
 
+    [HttpGet("user/{userId:guid}")]
+    public Task<IActionResult> GetByUser(Guid userId)
+    {
+        return HandleAsync(() => _walletService.GetWalletsByUser(userId), data => Ok(data));
+    }
+
     [HttpGet("{id:guid}")]
     public Task<IActionResult> GetById(Guid id)
     {
