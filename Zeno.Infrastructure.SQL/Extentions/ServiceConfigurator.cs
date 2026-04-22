@@ -14,6 +14,7 @@ public static class ServiceConfigurator
         services.AddScoped<IWalletRepository, WalletRepository>();
         services.AddScoped<IHomeRepository, HomeRepository>();
         services.AddScoped<ISalaryRepository, SalaryRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
 
         return services;
     }

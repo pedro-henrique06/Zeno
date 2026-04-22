@@ -7,6 +7,9 @@ public class WalletValidator : AbstractValidator<Wallet>
 {
     public WalletValidator()
     {
+        RuleFor(x => x.UserId)
+            .NotEqual(Guid.Empty).WithMessage("O usuário é obrigatório.");
+
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("O nome da carteira é obrigatório.")
             .MaximumLength(50).WithMessage("O nome deve ter no máximo 50 caracteres.");
