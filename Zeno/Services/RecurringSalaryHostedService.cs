@@ -15,12 +15,20 @@ public class RecurringSalaryHostedService : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            using var scope = _serviceProvider.CreateScope();
-            var salaryService = scope.ServiceProvider.GetRequiredService<ISalaryService>();
+            try
+            {
+                using var scope = _serviceProvider.CreateScope();
+                var salaryService = scope.ServiceProvider.GetRequiredService<ISalaryService>();
 
-            await salaryService.ProcessPendingSalaries();
+                await salaryService.ProcessPendingSalaries();
 
-            await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
+                await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[RecurringSalaryHostedService] Erro: {ex.Message}");
+                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+            }
         }
     }
 }
