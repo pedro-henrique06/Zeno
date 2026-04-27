@@ -40,7 +40,7 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 builder.Services.AddValidatorsFromAssemblyContaining<Zeno.Application.Validators.EntryValidator>();
-builder.Services.AddInfrastructureSQL(builder.Configuration.GetConnectionString("DefaultConnection")!);
+builder.Services.AddInfrastructureSQL(builder.Configuration["Database:ConnectionString"]!);
 builder.Services.AddScoped<IEntryService, EntryService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<IHomeService, HomeService>();
