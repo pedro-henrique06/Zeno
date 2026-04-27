@@ -22,6 +22,9 @@ public class SalaryService : ISalaryService
 
     public async Task<Salary> CreateSalary(Guid userId, Salary salary)
     {
+        salary.Id = Guid.NewGuid();
+        salary.UserId = userId;
+
         await ValidateAsync<SalaryValidator, Salary>(salary);
 
         var wallet = await _walletRepository.GetByIdAndUserAsync(salary.WalletId, userId);
