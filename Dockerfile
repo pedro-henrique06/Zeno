@@ -18,4 +18,4 @@ WORKDIR /app
 
 COPY --from=build /app/publish .
 
-CMD ["sh", "-c", "dotnet Zeno.dll --urls http://0.0.0.0:${PORT:-8080}"]
+CMD ["sh", "-c", "dotnet Zeno.API.dll --urls http://0.0.0.0:${PORT:-8080}"]
