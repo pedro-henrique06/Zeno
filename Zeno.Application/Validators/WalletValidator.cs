@@ -16,5 +16,9 @@ public class WalletValidator : AbstractValidator<Wallet>
 
         RuleFor(x => x.Description)
             .MaximumLength(200).WithMessage("A descrição deve ter no máximo 200 caracteres.");
+
+        RuleFor(x => x.Currency)
+            .NotEmpty().WithMessage("A moeda é obrigatória.")
+            .Length(3).WithMessage("A moeda deve ter 3 caracteres (ex: BRL, USD, EUR).");
     }
 }
