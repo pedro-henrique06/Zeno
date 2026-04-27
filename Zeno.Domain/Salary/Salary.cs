@@ -3,6 +3,7 @@ namespace Zeno.Domain.Salary;
 public class Salary
 {
     public Guid? Id { get; set; }
+    public Guid UserId { get; set; }
     public Guid WalletId { get; set; }
     public decimal Amount { get; set; }
     public string Description { get; set; } = string.Empty;

@@ -38,6 +38,14 @@ public class WalletRepository : IWalletRepository
         return await _context.Connection.QueryAsync<Wallet>(sql, new { UserId = userId });
     }
 
+    public async Task<IEnumerable<Wallet>> GetByUserIdAsync(Guid userId)
+    {
+        const string sql = @"SELECT Id, Name, Description, UserId, Balance, CreatedAt 
+                             FROM Wallets WHERE UserId = @UserId ORDER BY CreatedAt DESC";
+
+        return await _context.Connection.QueryAsync<Wallet>(sql, new { UserId = userId });
+    }
+
     public async Task<Wallet> CreateAsync(Wallet wallet)
     {
         const string sql = @"INSERT INTO Wallets (Id, Name, Description, Balance, UserId, CreatedAt) 
@@ -48,6 +56,7 @@ public class WalletRepository : IWalletRepository
             wallet.Id,
             wallet.Name,
             wallet.Description,
+            wallet.UserId,
             wallet.Balance,
             wallet.UserId,
             wallet.CreatedAt

@@ -85,6 +85,11 @@ public class SalaryService : ISalaryService
         return await _salaryRepository.GetByWalletAsync(walletId);
     }
 
+    public async Task<IEnumerable<Salary>> GetSalariesByUser(Guid userId)
+    {
+        return await _salaryRepository.GetByUserIdAsync(userId);
+    }
+
     public async Task ProcessPendingSalaries()
     {
         var today = DateTime.UtcNow.Day;

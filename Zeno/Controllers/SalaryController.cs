@@ -22,6 +22,12 @@ public class SalaryController : AppControllerBase
         return HandleAsync(() => _salaryService.GetSalariesByWallet(userId, walletId), data => Ok(data));
     }
 
+    [HttpGet("user/{userId:guid}")]
+    public Task<IActionResult> GetByUser(Guid userId)
+    {
+        return HandleAsync(() => _salaryService.GetSalariesByUser(userId), data => Ok(data));
+    }
+
     [HttpGet("{id:guid}")]
     public Task<IActionResult> GetById(Guid id)
     {

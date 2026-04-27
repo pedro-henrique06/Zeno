@@ -7,6 +7,9 @@ public class SalaryValidator : AbstractValidator<Salary>
 {
     public SalaryValidator()
     {
+        RuleFor(x => x.UserId)
+            .NotEqual(Guid.Empty).WithMessage("O usuário é obrigatório.");
+
         RuleFor(x => x.WalletId)
             .NotEqual(Guid.Empty).WithMessage("A carteira é obrigatória.");
 

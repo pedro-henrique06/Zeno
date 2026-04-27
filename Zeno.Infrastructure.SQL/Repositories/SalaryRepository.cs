@@ -32,7 +32,7 @@ public class SalaryRepository : ISalaryRepository
 
     public async Task<IEnumerable<Salary>> GetByWalletAsync(Guid walletId)
     {
-        const string sql = @"SELECT Id, WalletId, Amount, Description, DayOfMonth, Active, CreatedAt, LastProcessedAt 
+        const string sql = @"SELECT Id, UserId, WalletId, Amount, Description, DayOfMonth, Active, CreatedAt, LastProcessedAt 
                              FROM Salaries WHERE WalletId = @WalletId ORDER BY DayOfMonth";
         return await _context.Connection.QueryAsync<Salary>(sql, new { WalletId = walletId });
     }
@@ -49,7 +49,7 @@ public class SalaryRepository : ISalaryRepository
 
     public async Task<IEnumerable<Salary>> GetPendingSalariesAsync(int dayOfMonth)
     {
-        const string sql = @"SELECT Id, WalletId, Amount, Description, DayOfMonth, Active, CreatedAt, LastProcessedAt 
+        const string sql = @"SELECT Id, UserId, WalletId, Amount, Description, DayOfMonth, Active, CreatedAt, LastProcessedAt 
                              FROM Salaries 
                              WHERE Active = 1 AND DayOfMonth = @DayOfMonth
                              AND (LastProcessedAt IS NULL OR MONTH(LastProcessedAt) != MONTH(GETUTCDATE()) OR YEAR(LastProcessedAt) != YEAR(GETUTCDATE()))";
@@ -58,11 +58,12 @@ public class SalaryRepository : ISalaryRepository
 
     public async Task<Salary> CreateAsync(Salary salary)
     {
-        const string sql = @"INSERT INTO Salaries (Id, WalletId, Amount, Description, DayOfMonth, Active, CreatedAt, LastProcessedAt) 
-                             VALUES (@Id, @WalletId, @Amount, @Description, @DayOfMonth, @Active, @CreatedAt, @LastProcessedAt)";
+        const string sql = @"INSERT INTO Salaries (Id, UserId, WalletId, Amount, Description, DayOfMonth, Active, CreatedAt, LastProcessedAt) 
+                             VALUES (@Id, @UserId, @WalletId, @Amount, @Description, @DayOfMonth, @Active, @CreatedAt, @LastProcessedAt)";
         await _context.Connection.ExecuteAsync(sql, new
         {
             salary.Id,
+            salary.UserId,
             salary.WalletId,
             salary.Amount,
             salary.Description,
