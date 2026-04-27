@@ -9,5 +9,6 @@ public interface ISalaryService
     Task<Salary> DeleteSalary(Guid userId, Guid id);
     Task<Salary?> GetSalaryById(Guid userId, Guid id);
     Task<IEnumerable<Salary>> GetSalariesByWallet(Guid userId, Guid walletId);
+    Task<IEnumerable<Salary>> GetSalariesByUser(Guid userId);
     Task ProcessPendingSalaries();
 }

@@ -10,4 +10,5 @@ public interface IWalletService
     Task<IEnumerable<Wallet>> GetAllWallets(Guid userId);
     Task<Wallet?> GetWalletById(Guid userId, Guid id);
     Task<Wallet> AddSalary(Guid userId, Guid walletId, decimal amount);
+    Task<IEnumerable<Wallet>> GetWalletsByUser(Guid userId);
 }

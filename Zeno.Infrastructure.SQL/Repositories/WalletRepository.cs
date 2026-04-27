@@ -58,7 +58,6 @@ public class WalletRepository : IWalletRepository
             wallet.Description,
             wallet.UserId,
             wallet.Balance,
-            wallet.UserId,
             wallet.CreatedAt
         });
 

@@ -87,7 +87,7 @@ public class SalaryService : ISalaryService
 
     public async Task<IEnumerable<Salary>> GetSalariesByUser(Guid userId)
     {
-        return await _salaryRepository.GetByUserIdAsync(userId);
+        return await _salaryRepository.GetByUserAsync(userId);
     }
 
     public async Task ProcessPendingSalaries()
