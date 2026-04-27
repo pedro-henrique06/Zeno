@@ -7,5 +7,6 @@ public class Wallet
     public string Description { get; set; } = string.Empty;
     public Guid UserId { get; set; }
     public decimal Balance { get; set; }
+    public Guid UserId { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

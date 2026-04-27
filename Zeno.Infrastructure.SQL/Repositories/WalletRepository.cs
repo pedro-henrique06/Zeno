@@ -16,18 +16,26 @@ public class WalletRepository : IWalletRepository
 
     public async Task<Wallet?> GetByIdAsync(Guid id)
     {
-        const string sql = @"SELECT Id, Name, Description, UserId, Balance, CreatedAt 
+        const string sql = @"SELECT Id, Name, Description, Balance, UserId, CreatedAt 
                              FROM Wallets WHERE Id = @Id";
 
         return await _context.Connection.QueryFirstOrDefaultAsync<Wallet>(sql, new { Id = id });
     }
 
-    public async Task<IEnumerable<Wallet>> GetAllAsync()
+    public async Task<Wallet?> GetByIdAndUserAsync(Guid id, Guid userId)
     {
-        const string sql = @"SELECT Id, Name, Description, UserId, Balance, CreatedAt 
-                             FROM Wallets ORDER BY CreatedAt DESC";
+        const string sql = @"SELECT Id, Name, Description, Balance, UserId, CreatedAt 
+                             FROM Wallets WHERE Id = @Id AND UserId = @UserId";
 
-        return await _context.Connection.QueryAsync<Wallet>(sql);
+        return await _context.Connection.QueryFirstOrDefaultAsync<Wallet>(sql, new { Id = id, UserId = userId });
+    }
+
+    public async Task<IEnumerable<Wallet>> GetAllByUserAsync(Guid userId)
+    {
+        const string sql = @"SELECT Id, Name, Description, Balance, UserId, CreatedAt 
+                             FROM Wallets WHERE UserId = @UserId ORDER BY CreatedAt DESC";
+
+        return await _context.Connection.QueryAsync<Wallet>(sql, new { UserId = userId });
     }
 
     public async Task<IEnumerable<Wallet>> GetByUserIdAsync(Guid userId)
@@ -40,8 +48,8 @@ public class WalletRepository : IWalletRepository
 
     public async Task<Wallet> CreateAsync(Wallet wallet)
     {
-        const string sql = @"INSERT INTO Wallets (Id, Name, Description, UserId, Balance, CreatedAt) 
-                             VALUES (@Id, @Name, @Description, @UserId, @Balance, @CreatedAt)";
+        const string sql = @"INSERT INTO Wallets (Id, Name, Description, Balance, UserId, CreatedAt) 
+                             VALUES (@Id, @Name, @Description, @Balance, @UserId, @CreatedAt)";
 
         await _context.Connection.ExecuteAsync(sql, new
         {
@@ -50,6 +58,7 @@ public class WalletRepository : IWalletRepository
             wallet.Description,
             wallet.UserId,
             wallet.Balance,
+            wallet.UserId,
             wallet.CreatedAt
         });
 

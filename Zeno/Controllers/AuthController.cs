@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Zeno.Application.Interfaces;
 using Zeno.Application.Requests;
@@ -15,15 +16,24 @@ public class AuthController : AppControllerBase
         _authService = authService;
     }
 
-    [HttpPost("register")]
-    public Task<IActionResult> Register([FromBody] RegisterRequest request)
-    {
-        return HandleAsync(() => _authService.Register(request), data => Ok(data));
-    }
-
+    [AllowAnonymous]
     [HttpPost("login")]
     public Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        return HandleAsync(() => _authService.Login(request), data => Ok(data));
+        return HandleAsync(() => _authService.LoginAsync(request), data => Ok(data));
+    }
+
+    [AllowAnonymous]
+    [HttpPost("register")]
+    public Task<IActionResult> Register([FromBody] RegisterRequest request)
+    {
+        return HandleAsync(() => _authService.RegisterAsync(request), data => CreatedAtAction(nameof(Login), data));
+    }
+
+    [HttpPost("logout")]
+    public Task<IActionResult> Logout()
+    {
+        var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+        return HandleAsync(() => _authService.LogoutAsync(token), Ok(new { message = "Logout realizado com sucesso." }));
     }
 }

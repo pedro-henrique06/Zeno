@@ -16,9 +16,18 @@ public class SalaryRepository : ISalaryRepository
 
     public async Task<Salary?> GetByIdAsync(Guid id)
     {
-        const string sql = @"SELECT Id, UserId, WalletId, Amount, Description, DayOfMonth, Active, CreatedAt, LastProcessedAt 
-                             FROM Salaries WHERE Id = @Id";
+        const string sql = @"SELECT s.Id, s.WalletId, s.Amount, s.Description, s.DayOfMonth, s.Active, s.CreatedAt, s.LastProcessedAt 
+                             FROM Salaries s WHERE s.Id = @Id";
         return await _context.Connection.QueryFirstOrDefaultAsync<Salary>(sql, new { Id = id });
+    }
+
+    public async Task<Salary?> GetByIdAndUserAsync(Guid id, Guid userId)
+    {
+        const string sql = @"SELECT s.Id, s.WalletId, s.Amount, s.Description, s.DayOfMonth, s.Active, s.CreatedAt, s.LastProcessedAt 
+                             FROM Salaries s 
+                             INNER JOIN Wallets w ON s.WalletId = w.Id 
+                             WHERE s.Id = @Id AND w.UserId = @UserId";
+        return await _context.Connection.QueryFirstOrDefaultAsync<Salary>(sql, new { Id = id, UserId = userId });
     }
 
     public async Task<IEnumerable<Salary>> GetByWalletAsync(Guid walletId)
@@ -28,10 +37,13 @@ public class SalaryRepository : ISalaryRepository
         return await _context.Connection.QueryAsync<Salary>(sql, new { WalletId = walletId });
     }
 
-    public async Task<IEnumerable<Salary>> GetByUserIdAsync(Guid userId)
+    public async Task<IEnumerable<Salary>> GetByUserAsync(Guid userId)
     {
-        const string sql = @"SELECT Id, UserId, WalletId, Amount, Description, DayOfMonth, Active, CreatedAt, LastProcessedAt 
-                             FROM Salaries WHERE UserId = @UserId ORDER BY DayOfMonth";
+        const string sql = @"SELECT s.Id, s.WalletId, s.Amount, s.Description, s.DayOfMonth, s.Active, s.CreatedAt, s.LastProcessedAt 
+                             FROM Salaries s 
+                             INNER JOIN Wallets w ON s.WalletId = w.Id 
+                             WHERE w.UserId = @UserId 
+                             ORDER BY s.DayOfMonth";
         return await _context.Connection.QueryAsync<Salary>(sql, new { UserId = userId });
     }
 

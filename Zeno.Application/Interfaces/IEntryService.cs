@@ -5,8 +5,8 @@ namespace Zeno.Application.Interfaces;
 
 public interface IEntryService
 {
-    Task<Entry> CreateEntry(Entry entry);
-    Task<Entry> UpdateEntry(Entry entry);
-    Task<Entry> DeleteEntry(Guid id);
-    Task<IEnumerable<Entry>> GetEntriesByMonth(GetEntriesByMonthQuery query);
+    Task<Entry> CreateEntry(Guid userId, Entry entry);
+    Task<Entry> UpdateEntry(Guid userId, Entry entry);
+    Task<Entry> DeleteEntry(Guid userId, Guid id);
+    Task<IEnumerable<Entry>> GetEntriesByMonth(Guid userId, GetEntriesByMonthQuery query);
 }

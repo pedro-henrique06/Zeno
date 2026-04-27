@@ -19,25 +19,29 @@ public class EntryController : AppControllerBase
     [HttpGet]
     public Task<IActionResult> GetByMonth([FromQuery] int? month, [FromQuery] int? year, [FromQuery] Guid? walletId)
     {
+        var userId = GetUserId();
         var query = new GetEntriesByMonthQuery { Month = month, Year = year, WalletId = walletId };
-        return HandleAsync(() => _entryService.GetEntriesByMonth(query), data => Ok(data));
+        return HandleAsync(() => _entryService.GetEntriesByMonth(userId, query), data => Ok(data));
     }
 
     [HttpPost]
     public Task<IActionResult> Create([FromBody] Entry entry)
     {
-        return HandleAsync(() => _entryService.CreateEntry(entry), data => CreatedAtAction(nameof(GetByMonth), new { id = data.Id }, data));
+        var userId = GetUserId();
+        return HandleAsync(() => _entryService.CreateEntry(userId, entry), data => CreatedAtAction(nameof(GetByMonth), new { id = data.Id }, data));
     }
 
     [HttpPut]
     public Task<IActionResult> Update([FromBody] Entry entry)
     {
-        return HandleAsync(() => _entryService.UpdateEntry(entry), _ => NoContent());
+        var userId = GetUserId();
+        return HandleAsync(() => _entryService.UpdateEntry(userId, entry), _ => NoContent());
     }
 
     [HttpDelete("{id:guid}")]
     public Task<IActionResult> Delete(Guid id)
     {
-        return HandleAsync(() => _entryService.DeleteEntry(id), _ => NoContent());
+        var userId = GetUserId();
+        return HandleAsync(() => _entryService.DeleteEntry(userId, id), _ => NoContent());
     }
 }
