@@ -50,6 +50,13 @@ public class HomeController : AppControllerBase
         return HandleAsync(() => _homeService.DeleteHome(userId, id), _ => NoContent());
     }
 
+    [HttpGet("{homeId:guid}/wallets")]
+    public Task<IActionResult> GetWallets(Guid homeId)
+    {
+        var userId = GetUserId();
+        return HandleAsync(() => _homeService.GetWallets(userId, homeId), data => Ok(data));
+    }
+
     [HttpPost("{homeId:guid}/wallets/{walletId:guid}")]
     public Task<IActionResult> AddWallet(Guid homeId, Guid walletId)
     {

@@ -107,6 +107,19 @@ public class HomeService : IHomeService
         await _repository.RemoveWalletAsync(homeId, walletId);
     }
 
+    public async Task<IEnumerable<HomeWallet>> GetWallets(Guid userId, Guid homeId)
+    {
+        var isMember = await _repository.IsMemberAsync(homeId, userId);
+        if (!isMember)
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new(nameof(homeId), "Você não é membro desta casa.")
+                }));
+
+        return await _repository.GetWalletsByHomeAsync(homeId);
+    }
+
     public async Task<HomeExpense> CreateExpense(Guid userId, HomeExpense expense)
     {
         await ValidateAsync<HomeExpenseValidator, HomeExpense>(expense);

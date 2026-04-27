@@ -12,6 +12,7 @@ public interface IHomeService
     Task<IEnumerable<Home>> GetAllHomes(Guid userId);
     Task AddWalletToHome(Guid userId, Guid homeId, Guid walletId);
     Task RemoveWalletFromHome(Guid userId, Guid homeId, Guid walletId);
+    Task<IEnumerable<HomeWallet>> GetWallets(Guid userId, Guid homeId);
     Task<HomeExpense> CreateExpense(Guid userId, HomeExpense expense);
     Task DeleteExpense(Guid userId, Guid expenseId);
     Task<IEnumerable<HomeExpense>> GetExpensesByMonth(Guid userId, Guid homeId, int month, int year);
