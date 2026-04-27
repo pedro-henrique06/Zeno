@@ -21,10 +21,10 @@ public class WalletService : IWalletService
 
     public async Task<Wallet> CreateWallet(Guid userId, Wallet wallet)
     {
-        await ValidateAsync<WalletValidator, Wallet>(wallet);
-
         wallet.Id = Guid.NewGuid();
         wallet.UserId = userId;
+
+        await ValidateAsync<WalletValidator, Wallet>(wallet);
 
         return await _repository.CreateAsync(wallet);
     }
