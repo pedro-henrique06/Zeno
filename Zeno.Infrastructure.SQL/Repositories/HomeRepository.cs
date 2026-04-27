@@ -252,7 +252,7 @@ public class HomeRepository : IHomeRepository
 
     public async Task<IEnumerable<HomeMember>> GetMembersByHomeAsync(Guid homeId)
     {
-        const string sql = @"SELECT hm.HomeId, hm.UserId, u.Name, hm.Role, hm.JoinedAt 
+        const string sql = @"SELECT hm.HomeId, hm.UserId, u.Name as UserName, u.Email as UserEmail, hm.Role, hm.JoinedAt 
                              FROM HomeMembers hm 
                              INNER JOIN Users u ON hm.UserId = u.Id 
                              WHERE hm.HomeId = @HomeId";
