@@ -26,7 +26,7 @@ public class EntryRepository : IEntryRepository
     {
         const string sql = @"SELECT Id, Title, Value, Type, Description, Category, Date, WalletId 
                              FROM Entries 
-                             WHERE MONTH(Date) = @Month AND YEAR(Date) = @Year AND WalletId = @WalletId";
+                             WHERE EXTRACT(MONTH FROM Date) = @Month AND EXTRACT(YEAR FROM Date) = @Year AND WalletId = @WalletId";
 
         return await _context.Connection.QueryAsync<Entry>(sql, new { Month = month, Year = year, WalletId = walletId });
     }

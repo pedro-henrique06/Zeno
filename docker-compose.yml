@@ -1,19 +1,16 @@
 services:
-  sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: zeno_sqlserver
-    user: "0:0"
+  postgres:
+    image: postgres:16-alpine
+    container_name: zeno_postgres
     environment:
-      ACCEPT_EULA: "Y"
-      SA_PASSWORD: "Z3n0@Sql2024!"
-      MSSQL_PID: "Express"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ZenoDb
     ports:
-      - "1433:1433"
+      - "5432:5432"
     volumes:
-      - sqlserver_data:/var/opt/mssql/data
-      - ./docker/init.sql:/tmp/init.sql
-      - ./docker/entrypoint.sh:/tmp/entrypoint.sh
-    entrypoint: /bin/bash /tmp/entrypoint.sh
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
 
 volumes:
-  sqlserver_data:
+  postgres_data:

@@ -51,8 +51,8 @@ public class SalaryRepository : ISalaryRepository
     {
         const string sql = @"SELECT Id, UserId, WalletId, Amount, Description, DayOfMonth, Active, CreatedAt, LastProcessedAt 
                              FROM Salaries 
-                             WHERE Active = 1 AND DayOfMonth = @DayOfMonth
-                             AND (LastProcessedAt IS NULL OR MONTH(LastProcessedAt) != MONTH(GETUTCDATE()) OR YEAR(LastProcessedAt) != YEAR(GETUTCDATE()))";
+                             WHERE Active = true AND DayOfMonth = @DayOfMonth
+                             AND (LastProcessedAt IS NULL OR EXTRACT(MONTH FROM LastProcessedAt) != EXTRACT(MONTH FROM NOW()) OR EXTRACT(YEAR FROM LastProcessedAt) != EXTRACT(YEAR FROM NOW()))";
         return await _context.Connection.QueryAsync<Salary>(sql, new { DayOfMonth = dayOfMonth });
     }
 
@@ -99,7 +99,7 @@ public class SalaryRepository : ISalaryRepository
 
     public async Task MarkProcessedAsync(Guid id)
     {
-        const string sql = @"UPDATE Salaries SET LastProcessedAt = GETUTCDATE() WHERE Id = @Id";
+        const string sql = @"UPDATE Salaries SET LastProcessedAt = NOW() WHERE Id = @Id";
         await _context.Connection.ExecuteAsync(sql, new { Id = id });
     }
 }

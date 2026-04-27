@@ -1,24 +1,24 @@
-using Microsoft.Data.SqlClient;
+using Npgsql;
 
 namespace Zeno.Infrastructure.SQL.Context;
 
 public class ZenoDbContext
 {
     private readonly string _connectionString;
-    private SqlConnection? _connection;
+    private NpgsqlConnection? _connection;
 
     public ZenoDbContext(string connectionString)
     {
         _connectionString = connectionString;
     }
 
-    public SqlConnection Connection
+    public NpgsqlConnection Connection
     {
         get
         {
             if (_connection is null || _connection.State == System.Data.ConnectionState.Closed)
             {
-                _connection = new SqlConnection(_connectionString);
+                _connection = new NpgsqlConnection(_connectionString);
             }
 
             return _connection;
