@@ -18,30 +18,35 @@ public class WalletController : AppControllerBase
     [HttpGet]
     public Task<IActionResult> GetAll()
     {
-        return HandleAsync(() => _walletService.GetAllWallets(), data => Ok(data));
+        var userId = GetUserId();
+        return HandleAsync(() => _walletService.GetAllWallets(userId), data => Ok(data));
     }
 
     [HttpGet("{id:guid}")]
     public Task<IActionResult> GetById(Guid id)
     {
-        return HandleAsync(() => _walletService.GetWalletById(id), data => data is not null ? Ok(data) : NotFound());
+        var userId = GetUserId();
+        return HandleAsync(() => _walletService.GetWalletById(userId, id), data => data is not null ? Ok(data) : NotFound());
     }
 
     [HttpPost]
     public Task<IActionResult> Create([FromBody] Wallet wallet)
     {
-        return HandleAsync(() => _walletService.CreateWallet(wallet), data => CreatedAtAction(nameof(GetById), new { id = data.Id }, data));
+        var userId = GetUserId();
+        return HandleAsync(() => _walletService.CreateWallet(userId, wallet), data => CreatedAtAction(nameof(GetById), new { id = data.Id }, data));
     }
 
     [HttpPut]
     public Task<IActionResult> Update([FromBody] Wallet wallet)
     {
-        return HandleAsync(() => _walletService.UpdateWallet(wallet), _ => NoContent());
+        var userId = GetUserId();
+        return HandleAsync(() => _walletService.UpdateWallet(userId, wallet), _ => NoContent());
     }
 
     [HttpDelete("{id:guid}")]
     public Task<IActionResult> Delete(Guid id)
     {
-        return HandleAsync(() => _walletService.DeleteWallet(id), _ => NoContent());
+        var userId = GetUserId();
+        return HandleAsync(() => _walletService.DeleteWallet(userId, id), _ => NoContent());
     }
 }

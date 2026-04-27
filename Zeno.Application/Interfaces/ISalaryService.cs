@@ -4,10 +4,10 @@ namespace Zeno.Application.Interfaces;
 
 public interface ISalaryService
 {
-    Task<Salary> CreateSalary(Salary salary);
-    Task<Salary> UpdateSalary(Salary salary);
-    Task<Salary> DeleteSalary(Guid id);
-    Task<Salary?> GetSalaryById(Guid id);
-    Task<IEnumerable<Salary>> GetSalariesByWallet(Guid walletId);
+    Task<Salary> CreateSalary(Guid userId, Salary salary);
+    Task<Salary> UpdateSalary(Guid userId, Salary salary);
+    Task<Salary> DeleteSalary(Guid userId, Guid id);
+    Task<Salary?> GetSalaryById(Guid userId, Guid id);
+    Task<IEnumerable<Salary>> GetSalariesByWallet(Guid userId, Guid walletId);
     Task ProcessPendingSalaries();
 }

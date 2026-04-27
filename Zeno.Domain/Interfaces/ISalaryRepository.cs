@@ -5,7 +5,9 @@ namespace Zeno.Domain.Interfaces;
 public interface ISalaryRepository
 {
     Task<SalaryEntity?> GetByIdAsync(Guid id);
+    Task<SalaryEntity?> GetByIdAndUserAsync(Guid id, Guid userId);
     Task<IEnumerable<SalaryEntity>> GetByWalletAsync(Guid walletId);
+    Task<IEnumerable<SalaryEntity>> GetByUserAsync(Guid userId);
     Task<IEnumerable<SalaryEntity>> GetPendingSalariesAsync(int dayOfMonth);
     Task<SalaryEntity> CreateAsync(SalaryEntity salary);
     Task<SalaryEntity> UpdateAsync(SalaryEntity salary);

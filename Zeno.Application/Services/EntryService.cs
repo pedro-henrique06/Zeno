@@ -22,9 +22,17 @@ public class EntryService : IEntryService
         _walletRepository = walletRepository;
     }
 
-    public async Task<Entry> CreateEntry(Entry entry)
+    public async Task<Entry> CreateEntry(Guid userId, Entry entry)
     {
         await ValidateAsync<EntryValidator, Entry>(entry);
+
+        var wallet = await _walletRepository.GetByIdAndUserAsync(entry.WalletId!.Value, userId);
+        if (wallet is null)
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new("WalletId", "Carteira não encontrada.")
+                }));
 
         entry.Id = Guid.NewGuid();
 
@@ -35,15 +43,24 @@ public class EntryService : IEntryService
         return created;
     }
 
-    public async Task<Entry> UpdateEntry(Entry entry)
+    public async Task<Entry> UpdateEntry(Guid userId, Entry entry)
     {
         await ValidateAsync<UpdateEntryValidator, Entry>(entry);
 
-        var oldEntry = await _repository.GetByIdAsync(entry.Id!.Value)
-            ?? throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+        var oldEntry = await _repository.GetByIdAsync(entry.Id!.Value);
+        if (oldEntry is null)
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
                 new List<FluentValidation.Results.ValidationFailure>
                 {
                     new(nameof(entry.Id), "Lançamento não encontrado.")
+                }));
+
+        var oldWallet = await _walletRepository.GetByIdAndUserAsync(oldEntry.WalletId!.Value, userId);
+        if (oldWallet is null)
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new("WalletId", "Carteira não encontrada.")
                 }));
 
         await ReverseWalletBalance(oldEntry.WalletId!.Value, oldEntry.Type, oldEntry.Value);
@@ -55,17 +72,26 @@ public class EntryService : IEntryService
         return entry;
     }
 
-    public async Task<Entry> DeleteEntry(Guid id)
+    public async Task<Entry> DeleteEntry(Guid userId, Guid id)
     {
         var entry = new Entry { Id = id };
 
         await ValidateAsync<DeleteEntryValidator, Entry>(entry);
 
-        var existing = await _repository.GetByIdAsync(id)
-            ?? throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+        var existing = await _repository.GetByIdAsync(id);
+        if (existing is null)
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
                 new List<FluentValidation.Results.ValidationFailure>
                 {
                     new(nameof(id), "Lançamento não encontrado.")
+                }));
+
+        var wallet = await _walletRepository.GetByIdAndUserAsync(existing.WalletId!.Value, userId);
+        if (wallet is null)
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new("WalletId", "Carteira não encontrada.")
                 }));
 
         await ReverseWalletBalance(existing.WalletId!.Value, existing.Type, existing.Value);
@@ -75,9 +101,17 @@ public class EntryService : IEntryService
         return existing;
     }
 
-    public async Task<IEnumerable<Entry>> GetEntriesByMonth(GetEntriesByMonthQuery query)
+    public async Task<IEnumerable<Entry>> GetEntriesByMonth(Guid userId, GetEntriesByMonthQuery query)
     {
         await ValidateAsync<GetEntriesByMonthQueryValidator, GetEntriesByMonthQuery>(query);
+
+        var wallet = await _walletRepository.GetByIdAndUserAsync(query.WalletId!.Value, userId);
+        if (wallet is null)
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new("WalletId", "Carteira não encontrada.")
+                }));
 
         return await _repository.GetByMonthAsync(query.Month!.Value, query.Year!.Value, query.WalletId!.Value);
     }

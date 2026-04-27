@@ -19,25 +19,33 @@ public class WalletService : IWalletService
         _repository = repository;
     }
 
-    public async Task<Wallet> CreateWallet(Wallet wallet)
+    public async Task<Wallet> CreateWallet(Guid userId, Wallet wallet)
     {
         await ValidateAsync<WalletValidator, Wallet>(wallet);
 
         wallet.Id = Guid.NewGuid();
+        wallet.UserId = userId;
 
         return await _repository.CreateAsync(wallet);
     }
 
-    public async Task<Wallet> UpdateWallet(Wallet wallet)
+    public async Task<Wallet> UpdateWallet(Guid userId, Wallet wallet)
     {
         await ValidateAsync<UpdateWalletValidator, Wallet>(wallet);
+
+        var existing = await _repository.GetByIdAndUserAsync(wallet.Id!.Value, userId)
+            ?? throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new(nameof(wallet.Id), "Carteira não encontrada.")
+                }));
 
         return await _repository.UpdateAsync(wallet);
     }
 
-    public async Task<Wallet> DeleteWallet(Guid id)
+    public async Task<Wallet> DeleteWallet(Guid userId, Guid id)
     {
-        var wallet = await _repository.GetByIdAsync(id)
+        var wallet = await _repository.GetByIdAndUserAsync(id, userId)
             ?? throw new AppValidationException(new FluentValidation.Results.ValidationResult(
                 new List<FluentValidation.Results.ValidationFailure>
                 {
@@ -49,21 +57,21 @@ public class WalletService : IWalletService
         return wallet;
     }
 
-    public async Task<IEnumerable<Wallet>> GetAllWallets()
+    public async Task<IEnumerable<Wallet>> GetAllWallets(Guid userId)
     {
-        return await _repository.GetAllAsync();
+        return await _repository.GetAllByUserAsync(userId);
     }
 
-    public async Task<Wallet?> GetWalletById(Guid id)
+    public async Task<Wallet?> GetWalletById(Guid userId, Guid id)
     {
-        return await _repository.GetByIdAsync(id);
+        return await _repository.GetByIdAndUserAsync(id, userId);
     }
 
-    public async Task<Wallet> AddSalary(Guid walletId, decimal amount)
+    public async Task<Wallet> AddSalary(Guid userId, Guid walletId, decimal amount)
     {
         await ValidateAsync<AddSalaryRequestValidator, AddSalaryRequest>(new AddSalaryRequest { Amount = amount });
 
-        var wallet = await _repository.GetByIdAsync(walletId)
+        var wallet = await _repository.GetByIdAndUserAsync(walletId, userId)
             ?? throw new AppValidationException(new FluentValidation.Results.ValidationResult(
                 new List<FluentValidation.Results.ValidationFailure>
                 {

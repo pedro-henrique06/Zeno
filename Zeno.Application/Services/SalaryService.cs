@@ -20,26 +20,43 @@ public class SalaryService : ISalaryService
         _walletRepository = walletRepository;
     }
 
-    public async Task<Salary> CreateSalary(Salary salary)
+    public async Task<Salary> CreateSalary(Guid userId, Salary salary)
     {
         await ValidateAsync<SalaryValidator, Salary>(salary);
+
+        var wallet = await _walletRepository.GetByIdAndUserAsync(salary.WalletId, userId);
+        if (wallet is null)
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new("WalletId", "Carteira não encontrada.")
+                }));
 
         salary.Id = Guid.NewGuid();
 
         return await _salaryRepository.CreateAsync(salary);
     }
 
-    public async Task<Salary> UpdateSalary(Salary salary)
+    public async Task<Salary> UpdateSalary(Guid userId, Salary salary)
     {
         await ValidateAsync<SalaryValidator, Salary>(salary);
+
+        var existing = await _salaryRepository.GetByIdAndUserAsync(salary.Id!.Value, userId);
+        if (existing is null)
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new(nameof(salary.Id), "Salário não encontrado.")
+                }));
 
         return await _salaryRepository.UpdateAsync(salary);
     }
 
-    public async Task<Salary> DeleteSalary(Guid id)
+    public async Task<Salary> DeleteSalary(Guid userId, Guid id)
     {
-        var salary = await _salaryRepository.GetByIdAsync(id)
-            ?? throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+        var salary = await _salaryRepository.GetByIdAndUserAsync(id, userId);
+        if (salary is null)
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
                 new List<FluentValidation.Results.ValidationFailure>
                 {
                     new(nameof(id), "Salário não encontrado.")
@@ -50,13 +67,21 @@ public class SalaryService : ISalaryService
         return salary;
     }
 
-    public async Task<Salary?> GetSalaryById(Guid id)
+    public async Task<Salary?> GetSalaryById(Guid userId, Guid id)
     {
-        return await _salaryRepository.GetByIdAsync(id);
+        return await _salaryRepository.GetByIdAndUserAsync(id, userId);
     }
 
-    public async Task<IEnumerable<Salary>> GetSalariesByWallet(Guid walletId)
+    public async Task<IEnumerable<Salary>> GetSalariesByWallet(Guid userId, Guid walletId)
     {
+        var wallet = await _walletRepository.GetByIdAndUserAsync(walletId, userId);
+        if (wallet is null)
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new("WalletId", "Carteira não encontrada.")
+                }));
+
         return await _salaryRepository.GetByWalletAsync(walletId);
     }
 

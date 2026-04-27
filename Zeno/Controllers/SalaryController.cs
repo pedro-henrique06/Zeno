@@ -18,30 +18,35 @@ public class SalaryController : AppControllerBase
     [HttpGet("wallet/{walletId:guid}")]
     public Task<IActionResult> GetByWallet(Guid walletId)
     {
-        return HandleAsync(() => _salaryService.GetSalariesByWallet(walletId), data => Ok(data));
+        var userId = GetUserId();
+        return HandleAsync(() => _salaryService.GetSalariesByWallet(userId, walletId), data => Ok(data));
     }
 
     [HttpGet("{id:guid}")]
     public Task<IActionResult> GetById(Guid id)
     {
-        return HandleAsync(() => _salaryService.GetSalaryById(id), data => data is not null ? Ok(data) : NotFound());
+        var userId = GetUserId();
+        return HandleAsync(() => _salaryService.GetSalaryById(userId, id), data => data is not null ? Ok(data) : NotFound());
     }
 
     [HttpPost]
     public Task<IActionResult> Create([FromBody] Salary salary)
     {
-        return HandleAsync(() => _salaryService.CreateSalary(salary), data => CreatedAtAction(nameof(GetById), new { id = data.Id }, data));
+        var userId = GetUserId();
+        return HandleAsync(() => _salaryService.CreateSalary(userId, salary), data => CreatedAtAction(nameof(GetById), new { id = data.Id }, data));
     }
 
     [HttpPut]
     public Task<IActionResult> Update([FromBody] Salary salary)
     {
-        return HandleAsync(() => _salaryService.UpdateSalary(salary), data => Ok(data));
+        var userId = GetUserId();
+        return HandleAsync(() => _salaryService.UpdateSalary(userId, salary), data => Ok(data));
     }
 
     [HttpDelete("{id:guid}")]
     public Task<IActionResult> Delete(Guid id)
     {
-        return HandleAsync(() => _salaryService.DeleteSalary(id), data => Ok(data));
+        var userId = GetUserId();
+        return HandleAsync(() => _salaryService.DeleteSalary(userId, id), data => Ok(data));
     }
 }
