@@ -54,6 +54,6 @@ public class AccountController : AppControllerBase
     public Task<IActionResult> Delete(Guid id)
     {
         var userId = GetUserId();
-        return HandleAsync(() => _accountService.DeleteAccountAsync(userId, id), _ => NoContent());
+        return HandleAsync(() => _accountService.DeleteAccountAsync(userId, id), NoContent());
     }
 }
