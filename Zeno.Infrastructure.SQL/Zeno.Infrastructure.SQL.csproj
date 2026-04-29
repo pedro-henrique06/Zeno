@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Zeno.Domain\Zeno.Domain.csproj" />
+    <ProjectReference Include="..\Zeno.Application\Zeno.Application.csproj" />
   </ItemGroup>
 
 </Project>

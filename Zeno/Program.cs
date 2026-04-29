@@ -46,7 +46,7 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddValidatorsFromAssemblyContaining<Zeno.Application.Validators.EntryValidator>();
 var connStr = builder.Configuration["Database:ConnectionString"]!;
 Console.WriteLine($"[DEBUG] ConnectionString: {connStr}");
-builder.Services.AddInfrastructureSQL(connStr);
+builder.Services.AddInfrastructureSQL(connStr, builder.Configuration["Encryption:Key"]!);
 builder.Services.AddScoped<IEntryService, EntryService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
