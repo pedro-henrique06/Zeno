@@ -49,6 +49,7 @@ Console.WriteLine($"[DEBUG] ConnectionString: {connStr}");
 builder.Services.AddInfrastructureSQL(connStr);
 builder.Services.AddScoped<IEntryService, EntryService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
+builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IHomeService, HomeService>();
 builder.Services.AddScoped<ISalaryService, SalaryService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
