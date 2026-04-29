@@ -2,6 +2,8 @@ using FluentValidation;
 using Zeno.Application.Exceptions;
 using Zeno.Application.Interfaces;
 using Zeno.Application.Validators;
+using Zeno.Domain.Entry;
+using Zeno.Domain.Enum;
 using Zeno.Domain.Interfaces;
 using Zeno.Domain.Salary;
 
@@ -11,13 +13,15 @@ public class SalaryService : ISalaryService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ISalaryRepository _salaryRepository;
-    private readonly IWalletRepository _walletRepository;
+    private readonly IAccountRepository _accountRepository;
+    private readonly IEntryRepository _entryRepository;
 
-    public SalaryService(IServiceProvider serviceProvider, ISalaryRepository salaryRepository, IWalletRepository walletRepository)
+    public SalaryService(IServiceProvider serviceProvider, ISalaryRepository salaryRepository, IAccountRepository accountRepository, IEntryRepository entryRepository)
     {
         _serviceProvider = serviceProvider;
         _salaryRepository = salaryRepository;
-        _walletRepository = walletRepository;
+        _accountRepository = accountRepository;
+        _entryRepository = entryRepository;
     }
 
     public async Task<Salary> CreateSalary(Guid userId, Salary salary)
@@ -27,15 +31,13 @@ public class SalaryService : ISalaryService
 
         await ValidateAsync<SalaryValidator, Salary>(salary);
 
-        var wallet = await _walletRepository.GetByIdAndUserAsync(salary.WalletId, userId);
-        if (wallet is null)
+        var account = await _accountRepository.GetByIdAsync(salary.AccountId);
+        if (account is null)
             throw new AppValidationException(new FluentValidation.Results.ValidationResult(
                 new List<FluentValidation.Results.ValidationFailure>
                 {
-                    new("WalletId", "Carteira não encontrada.")
+                    new("AccountId", "Conta não encontrada.")
                 }));
-
-        salary.Id = Guid.NewGuid();
 
         return await _salaryRepository.CreateAsync(salary);
     }
@@ -75,22 +77,14 @@ public class SalaryService : ISalaryService
         return await _salaryRepository.GetByIdAndUserAsync(id, userId);
     }
 
-    public async Task<IEnumerable<Salary>> GetSalariesByWallet(Guid userId, Guid walletId)
-    {
-        var wallet = await _walletRepository.GetByIdAndUserAsync(walletId, userId);
-        if (wallet is null)
-            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
-                new List<FluentValidation.Results.ValidationFailure>
-                {
-                    new("WalletId", "Carteira não encontrada.")
-                }));
-
-        return await _salaryRepository.GetByWalletAsync(walletId);
-    }
-
     public async Task<IEnumerable<Salary>> GetSalariesByUser(Guid userId)
     {
         return await _salaryRepository.GetByUserAsync(userId);
+    }
+
+    public async Task<IEnumerable<Salary>> GetSalariesByWallet(Guid userId, Guid walletId)
+    {
+        return await _salaryRepository.GetByAccountAsync(walletId);
     }
 
     public async Task ProcessPendingSalaries()
@@ -100,8 +94,27 @@ public class SalaryService : ISalaryService
 
         foreach (var salary in pendingSalaries)
         {
-            await _walletRepository.AddBalanceAsync(salary.WalletId, salary.Amount);
-            await _salaryRepository.MarkProcessedAsync(salary.Id!.Value);
+            var account = await _accountRepository.GetByIdAsync(salary.AccountId);
+            if (account is not null)
+            {
+                var newBalance = account.Balance + salary.Amount;
+                await _accountRepository.UpdateBalanceAsync(salary.AccountId, newBalance);
+
+                var entry = new Entry
+                {
+                    Id = Guid.NewGuid(),
+                    Title = salary.Description,
+                    Value = salary.Amount,
+                    Type = EntryType.Credit,
+                    Category = Category.Salary,
+                    Date = DateTime.UtcNow,
+                    WalletId = account.WalletId,
+                    Description = $"Salário creditado dia {salary.DayOfMonth}"
+                };
+                await _entryRepository.CreateAsync(entry);
+
+                await _salaryRepository.MarkProcessedAsync(salary.Id!.Value);
+            }
         }
     }
 

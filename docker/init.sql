@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS HomeExpenses (
 CREATE TABLE IF NOT EXISTS Salaries (
     Id UUID PRIMARY KEY,
     UserId UUID NOT NULL,
-    WalletId UUID NOT NULL,
+    AccountId UUID NOT NULL,
     Amount NUMERIC(18,2) NOT NULL,
     Description VARCHAR(200) NOT NULL,
     DayOfMonth INT NOT NULL,
@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS Salaries (
     CreatedAt TIMESTAMP NOT NULL,
     LastProcessedAt TIMESTAMP NULL,
     CONSTRAINT FK_Salaries_Users FOREIGN KEY (UserId) REFERENCES Users(Id),
-    CONSTRAINT FK_Salaries_Wallets FOREIGN KEY (WalletId) REFERENCES Wallets(Id)
+    CONSTRAINT FK_Salaries_Accounts FOREIGN KEY (AccountId) REFERENCES Accounts(Id)
 );
 
 CREATE TABLE IF NOT EXISTS HomeMembers (

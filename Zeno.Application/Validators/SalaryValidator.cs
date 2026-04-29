@@ -10,8 +10,8 @@ public class SalaryValidator : AbstractValidator<Salary>
         RuleFor(x => x.UserId)
             .NotEqual(Guid.Empty).WithMessage("O usuário é obrigatório.");
 
-        RuleFor(x => x.WalletId)
-            .NotEqual(Guid.Empty).WithMessage("A carteira é obrigatória.");
+        RuleFor(x => x.AccountId)
+            .NotEqual(Guid.Empty).WithMessage("A conta é obrigatória.");
 
         RuleFor(x => x.Amount)
             .GreaterThan(0).WithMessage("O valor do salário deve ser maior que zero.");

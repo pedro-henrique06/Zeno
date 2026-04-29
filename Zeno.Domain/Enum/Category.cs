@@ -11,6 +11,7 @@ namespace Zeno.Domain.Enum
         Grocery = 2,
         Entertainment = 3,
         Utilities = 4,
-        Transportation = 5
+        Transportation = 5,
+        Salary = 6
     }
 }

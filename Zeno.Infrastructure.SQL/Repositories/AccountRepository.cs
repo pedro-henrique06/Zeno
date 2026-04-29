@@ -43,7 +43,7 @@ public class AccountRepository : IAccountRepository
 
     public async Task<Account> CreateAsync(Account account)
     {
-        const string sql = @"INSERT INTO Accounts (Id, Name, Bank, Type, Balance, WalletId, CreatedAt) 
+        const string sql = @"INSERT INTO Accounts (Id, Name, Bank, Type, Balance, WalletId, CreatedAt)
                              VALUES (@Id, @Name, @Bank, @Type, @Balance, @WalletId, @CreatedAt)";
 
         await _context.Connection.ExecuteAsync(sql, new
@@ -62,8 +62,8 @@ public class AccountRepository : IAccountRepository
 
     public async Task<Account> UpdateAsync(Account account)
     {
-        const string sql = @"UPDATE Accounts 
-                             SET Name = @Name, Bank = @Bank, Type = @Type 
+        const string sql = @"UPDATE Accounts
+                             SET Name = @Name, Bank = @Bank, Type = @Type
                              WHERE Id = @Id";
 
         await _context.Connection.ExecuteAsync(sql, new
