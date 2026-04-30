@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using Zeno.Application.Interfaces;
 using Zeno.Application.Requests;
 
@@ -45,7 +46,7 @@ public class AuthController : AppControllerBase
             IsPersistent = true
         };
 
-        return Challenge(properties, provider);
+        return Challenge(properties, "Google");
     }
 
     [AllowAnonymous]
@@ -58,7 +59,17 @@ public class AuthController : AppControllerBase
         if (string.IsNullOrEmpty(code))
             return BadRequest(new { error = "Código de autorização não fornecido." });
 
-        return Ok(new { message = $"OAuth callback received for {provider}. Code: {code}" });
+        var auth = await HttpContext.AuthenticateAsync("Google");
+        if (!auth.Succeeded)
+            return Unauthorized(new { error = "Falha na autenticação Google." });
+
+        var externalUser = auth.Principal;
+        var providerId = externalUser?.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
+        var email = externalUser?.FindFirst(ClaimTypes.Email)?.Value ?? "";
+        var name = externalUser?.FindFirst(ClaimTypes.Name)?.Value ?? "";
+
+        var result = await _authService.HandleOAuthCallbackAsync(provider, providerId, email, name);
+        return Ok(result);
     }
 
     [HttpPost("logout")]
