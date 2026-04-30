@@ -104,7 +104,7 @@ builder.Services.AddAuthentication(options =>
 {
     options.ClientId = builder.Configuration["OAuth:Google:ClientId"] ?? "";
     options.ClientSecret = builder.Configuration["OAuth:Google:ClientSecret"] ?? "";
-    options.CallbackPath = "/signin-google";
+    options.CallbackPath = "/api/auth/oauth/google/callback";
     options.SaveTokens = true;
     options.Events = new OAuthEvents
     {
