@@ -6,6 +6,7 @@ public interface IUserRepository
 {
     Task<UserEntity?> GetByIdAsync(Guid id);
     Task<UserEntity?> GetByEmailAsync(string email);
+    Task<UserEntity?> GetByProviderAsync(string provider, string providerId);
     Task<UserEntity> CreateAsync(UserEntity user);
     Task<bool> EmailExistsAsync(string email);
 }

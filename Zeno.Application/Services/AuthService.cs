@@ -3,7 +3,6 @@ using System.Security.Claims;
 using System.Text;
 using BCrypt.Net;
 using FluentValidation;
-using FluentValidation.Results;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Zeno.Application.Exceptions;
@@ -37,14 +36,21 @@ public class AuthService : IAuthService
         await ValidateAsync<LoginRequestValidator, LoginRequest>(request);
 
         var user = await _userRepository.GetByEmailAsync(request.Email)
-            ?? throw new AppValidationException(new ValidationResult(
+            ?? throw new AppValidationException(new FluentValidation.Results.ValidationResult(
                 new List<FvValidationFailure>
                 {
                     new("Email", "Usuário não encontrado.")
                 }));
 
-        if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-            throw new AppValidationException(new ValidationResult(
+        if (user.Provider != OAuthProvider.None && !string.IsNullOrEmpty(user.ProviderId))
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FvValidationFailure>
+                {
+                    new("Email", "Este e-mail está cadastrado via OAuth. Faça login com o provedor correspondente.")
+                }));
+
+        if (string.IsNullOrEmpty(user.PasswordHash) || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
                 new List<FvValidationFailure>
                 {
                     new("Password", "Senha inválida.")
@@ -57,6 +63,10 @@ public class AuthService : IAuthService
             UserId = user.Id,
             Name = user.Name,
             Email = user.Email,
+            Phone = user.Phone,
+            Document = user.Document,
+            BirthDate = user.BirthDate,
+            OAuthProvider = user.Provider.ToString(),
             Token = token
         };
     }
@@ -66,7 +76,7 @@ public class AuthService : IAuthService
         await ValidateAsync<RegisterRequestValidator, RegisterRequest>(request);
 
         if (await _userRepository.EmailExistsAsync(request.Email))
-            throw new AppValidationException(new ValidationResult(
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
                 new List<FvValidationFailure>
                 {
                     new("Email", "Este e-mail já está em uso.")
@@ -77,7 +87,11 @@ public class AuthService : IAuthService
             Id = Guid.NewGuid(),
             Name = request.Name,
             Email = request.Email,
+            Phone = request.Phone,
+            Document = request.Document,
+            BirthDate = request.BirthDate,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            Provider = OAuthProvider.None,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -90,6 +104,59 @@ public class AuthService : IAuthService
             UserId = user.Id,
             Name = user.Name,
             Email = user.Email,
+            Phone = user.Phone,
+            Document = user.Document,
+            BirthDate = user.BirthDate,
+            OAuthProvider = user.Provider.ToString(),
+            Token = token
+        };
+    }
+
+    public async Task<AuthResponse> HandleOAuthCallbackAsync(string provider, string providerId, string email, string name)
+    {
+        var user = await _userRepository.GetByEmailAsync(email);
+
+        if (user is null)
+        {
+            var oauthProvider = provider.ToLower() switch
+            {
+                "google" => OAuthProvider.Google,
+                _ => OAuthProvider.None
+            };
+
+            user = new User
+            {
+                Id = Guid.NewGuid(),
+                Name = name,
+                Email = email,
+                Provider = oauthProvider,
+                ProviderId = providerId,
+                EmailVerified = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _userRepository.CreateAsync(user);
+        }
+        else if (user.Provider == OAuthProvider.None && string.IsNullOrEmpty(user.ProviderId) && !string.IsNullOrEmpty(user.PasswordHash))
+        {
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FvValidationFailure>
+                {
+                    new("Email", "Este e-mail já possui cadastro com senha. Faça login com e-mail e senha.")
+                }));
+        }
+
+        var token = GenerateJwtToken(user);
+
+        return new AuthResponse
+        {
+            UserId = user.Id,
+            Name = user.Name,
+            Email = user.Email,
+            Phone = user.Phone,
+            Document = user.Document,
+            BirthDate = user.BirthDate,
+            OAuthProvider = user.Provider.ToString(),
             Token = token
         };
     }
@@ -117,6 +184,7 @@ public class AuthService : IAuthService
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
             new Claim(JwtRegisteredClaimNames.Name, user.Name),
+            new Claim("Provider", user.Provider.ToString()),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 

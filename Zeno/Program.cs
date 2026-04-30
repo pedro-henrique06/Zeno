@@ -1,6 +1,7 @@
 using System.Text;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Zeno.Application.Interfaces;
@@ -64,6 +65,7 @@ builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultSignInScheme = "External";
 })
 .AddJwtBearer(options =>
 {
@@ -93,6 +95,22 @@ builder.Services.AddAuthentication(options =>
             {
                 context.Fail("Token revogado.");
             }
+            return Task.CompletedTask;
+        }
+    };
+})
+.AddCookie("External")
+.AddGoogle("Google", options =>
+{
+    options.ClientId = builder.Configuration["OAuth:Google:ClientId"] ?? "";
+    options.ClientSecret = builder.Configuration["OAuth:Google:ClientSecret"] ?? "";
+    options.CallbackPath = "/signin-google";
+    options.SaveTokens = true;
+    options.Events = new OAuthEvents
+    {
+        OnCreatingTicket = context =>
+        {
+            Console.WriteLine($"[GOOGLE] Token created for: {context.Identity?.Name}");
             return Task.CompletedTask;
         }
     };

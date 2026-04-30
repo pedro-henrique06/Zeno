@@ -30,6 +30,37 @@ public class AuthController : AppControllerBase
         return HandleAsync(() => _authService.RegisterAsync(request), data => CreatedAtAction(nameof(Login), data));
     }
 
+    [AllowAnonymous]
+    [HttpGet("oauth/{provider}")]
+    public IActionResult InitiateOAuthLogin(string provider)
+    {
+        var providerLower = provider.ToLower();
+        if (providerLower != "google")
+            return BadRequest(new { error = "Provedor OAuth não suportado." });
+
+        var redirectUrl = $"/api/auth/oauth/{providerLower}/callback";
+        var properties = new Microsoft.AspNetCore.Authentication.AuthenticationProperties
+        {
+            RedirectUri = Url.Action(nameof(HandleOAuthCallback), new { provider = providerLower }),
+            IsPersistent = true
+        };
+
+        return Challenge(properties, provider);
+    }
+
+    [AllowAnonymous]
+    [HttpGet("oauth/{provider}/callback")]
+    public async Task<IActionResult> HandleOAuthCallback(string provider, [FromQuery] string? code, [FromQuery] string? error)
+    {
+        if (!string.IsNullOrEmpty(error))
+            return BadRequest(new { error = $"OAuth error: {error}" });
+
+        if (string.IsNullOrEmpty(code))
+            return BadRequest(new { error = "Código de autorização não fornecido." });
+
+        return Ok(new { message = $"OAuth callback received for {provider}. Code: {code}" });
+    }
+
     [HttpPost("logout")]
     public Task<IActionResult> Logout()
     {
