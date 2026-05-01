@@ -145,9 +145,13 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
 
-app.UseExceptionHandler("/error");
+app.Use(async (context, next) =>
+{
+    context.Request.Scheme = "https";
+    await next();
+});
 
-app.UseHttpsRedirection();
+app.UseExceptionHandler("/error");
 
 app.UseAuthentication();
 app.UseAuthorization();

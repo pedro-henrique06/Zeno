@@ -199,6 +199,11 @@ public class AuthService : IAuthService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
+    public string GetGoogleClientId()
+    {
+        return _configuration["OAuth:Google:ClientId"] ?? "";
+    }
+
     private async Task ValidateAsync<TValidator, T>(T instance) where TValidator : IValidator<T>
     {
         var validator = (TValidator)_serviceProvider.GetService(typeof(TValidator))!;
