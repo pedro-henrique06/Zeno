@@ -129,12 +129,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddAuthorization(options =>
-{
-    options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
-        .RequireAuthenticatedUser()
-        .Build();
-});
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
