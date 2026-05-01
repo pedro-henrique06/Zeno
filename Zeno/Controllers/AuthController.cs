@@ -40,7 +40,7 @@ public class AuthController : AppControllerBase
         if (providerLower != "google")
             return BadRequest(new { error = "Provedor OAuth não suportado." });
 
-        var redirectUrl = $"https://{Request.Host}/api/auth/oauth/{providerLower}/callback";
+        var redirectUrl = $"https://zeno-production-51bb.up.railway.app/api/auth/oauth/{providerLower}/callback";
         var properties = new Microsoft.AspNetCore.Authentication.AuthenticationProperties
         {
             RedirectUri = redirectUrl,
