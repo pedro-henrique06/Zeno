@@ -40,11 +40,10 @@ public class AuthController : AppControllerBase
         if (providerLower != "google")
             return BadRequest(new { error = "Provedor OAuth não suportado." });
 
-        var redirectUrl = $"/api/auth/oauth/{providerLower}/callback";
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var redirectUrl = $"https://{Request.Host}/api/auth/oauth/{providerLower}/callback";
         var properties = new Microsoft.AspNetCore.Authentication.AuthenticationProperties
         {
-            RedirectUri = baseUrl + redirectUrl,
+            RedirectUri = redirectUrl,
             IsPersistent = true
         };
 
@@ -71,7 +70,7 @@ public class AuthController : AppControllerBase
         var name = externalUser?.FindFirst(ClaimTypes.Name)?.Value ?? "";
 
         var result = await _authService.HandleOAuthCallbackAsync(provider, providerId, email, name);
-        return Redirect($"{Request.Scheme}://{Request.Host}/auth/callback?token={result.Token}");
+        return Redirect($"https://{Request.Host}/auth/callback?token={result.Token}");
     }
 
     [HttpPost("logout")]
