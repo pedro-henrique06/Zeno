@@ -204,6 +204,11 @@ public class AuthService : IAuthService
         return _configuration["OAuth:Google:ClientId"] ?? "";
     }
 
+    public string GetGoogleClientSecret()
+    {
+        return _configuration["OAuth:Google:ClientSecret"] ?? "";
+    }
+
     private async Task ValidateAsync<TValidator, T>(T instance) where TValidator : IValidator<T>
     {
         var validator = (TValidator)_serviceProvider.GetService(typeof(TValidator))!;

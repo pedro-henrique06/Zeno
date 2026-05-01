@@ -10,4 +10,5 @@ public interface IAuthService
     Task<AuthResponse> HandleOAuthCallbackAsync(string provider, string providerId, string email, string name);
     Task LogoutAsync(string token);
     string GetGoogleClientId();
+    string GetGoogleClientSecret();
 }
