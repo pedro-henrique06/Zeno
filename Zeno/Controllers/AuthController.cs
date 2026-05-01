@@ -41,9 +41,10 @@ public class AuthController : AppControllerBase
             return BadRequest(new { error = "Provedor OAuth não suportado." });
 
         var redirectUrl = $"/api/auth/oauth/{providerLower}/callback";
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
         var properties = new Microsoft.AspNetCore.Authentication.AuthenticationProperties
         {
-            RedirectUri = Url.Action(nameof(HandleOAuthCallback), new { provider = providerLower }),
+            RedirectUri = baseUrl + redirectUrl,
             IsPersistent = true
         };
 
