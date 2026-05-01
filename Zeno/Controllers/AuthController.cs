@@ -70,7 +70,7 @@ public class AuthController : AppControllerBase
         var name = externalUser?.FindFirst(ClaimTypes.Name)?.Value ?? "";
 
         var result = await _authService.HandleOAuthCallbackAsync(provider, providerId, email, name);
-        return Ok(result);
+        return Redirect($"{Request.Scheme}://{Request.Host}/auth/callback?token={result.Token}");
     }
 
     [HttpPost("logout")]
