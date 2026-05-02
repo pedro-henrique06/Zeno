@@ -81,7 +81,7 @@ public class UserRepository : IUserRepository
 
         return new User
         {
-            Id = Guid.TryParse(row.Id?.ToString(), out Guid id) ? id : Guid.Empty,
+            Id = Guid.TryParse((string)row.Id, out Guid id) ? id : Guid.Empty,
             Name = row.Name?.ToString() ?? string.Empty,
             Email = row.Email?.ToString() ?? string.Empty,
             Phone = row.Phone as string,
