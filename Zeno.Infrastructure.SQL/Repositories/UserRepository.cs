@@ -96,7 +96,7 @@ public class UserRepository : IUserRepository
             BirthDate = row.BirthDate as DateTime?,
             Provider = prov,
             ProviderId = row.ProviderId as string,
-            PasswordHash = row.PasswordHash ?? string.Empty,
+            PasswordHash = row.PasswordHash != null ? row.PasswordHash.ToString() : null,
             CreatedAt = row.CreatedAt ?? DateTime.UtcNow,
             UpdatedAt = row.UpdatedAt as DateTime?,
             EmailVerified = ev
