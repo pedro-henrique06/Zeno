@@ -108,11 +108,18 @@ builder.Services.AddAuthentication(options =>
     options.ClientSecret = builder.Configuration["OAuth:Google:ClientSecret"] ?? "";
     options.CallbackPath = "/api/auth/oauth/google/callback";
     options.SaveTokens = true;
+    options.CorrelationCookie.SameSite = SameSiteMode.Lax;
+    options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
     options.Events = new OAuthEvents
     {
         OnCreatingTicket = context =>
         {
             Console.WriteLine($"[GOOGLE] Token created for: {context.Identity?.Name}");
+            return Task.CompletedTask;
+        },
+        OnRemoteFailure = context =>
+        {
+            Console.WriteLine($"[GOOGLE Remote Failure] {context.Error}");
             return Task.CompletedTask;
         }
     };
@@ -132,6 +139,12 @@ builder.Services.AddCors(options =>
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Zeno.API v1");
+});
 
 app.UseCors();
 

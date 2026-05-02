@@ -83,41 +83,49 @@ public class AuthController : AppControllerBase
     [HttpGet("oauth/{provider}/callback")]
     public async Task<IActionResult> HandleOAuthCallback(string provider, [FromQuery] string? code, [FromQuery] string? error, [FromQuery] string? state)
     {
-        if (!string.IsNullOrEmpty(error))
-            return BadRequest(new { error = $"OAuth error: {error}" });
-
-        if (string.IsNullOrEmpty(code))
-            return BadRequest(new { error = "Código de autorização não fornecido." });
-
-        var clientId = _authService.GetGoogleClientId();
-        var clientSecret = _authService.GetGoogleClientSecret();
-        var redirectUri = $"https://zeno-production-51bb.up.railway.app/api/auth/oauth/{provider}/callback";
-
-        var tokenEndpoint = "https://oauth2.googleapis.com/token";
-        var tokenRequest = new Dictionary<string, string>
+        try
         {
-            { "code", code },
-            { "client_id", clientId },
-            { "client_secret", clientSecret },
-            { "redirect_uri", redirectUri },
-            { "grant_type", "authorization_code" }
-        };
+            if (!string.IsNullOrEmpty(error))
+                return BadRequest(new { error = $"OAuth error: {error}" });
 
-        using var client = new HttpClient();
-        var tokenResponse = await client.PostAsync(tokenEndpoint, new FormUrlEncodedContent(tokenRequest));
-        var tokenData = await tokenResponse.Content.ReadFromJsonAsync<GoogleTokenResponse>();
+            if (string.IsNullOrEmpty(code))
+                return BadRequest(new { error = "Código de autorização não fornecido." });
 
-        if (tokenData == null || string.IsNullOrEmpty(tokenData.access_token))
-            return Unauthorized(new { error = "Falha ao obter token do Google." });
+            var clientId = _authService.GetGoogleClientId();
+            var clientSecret = _authService.GetGoogleClientSecret();
+            var redirectUri = $"https://zeno-production-51bb.up.railway.app/api/auth/oauth/{provider}/callback";
 
-        var userInfoResponse = await client.GetAsync($"https://www.googleapis.com/oauth2/v2/userinfo?access_token={tokenData.access_token}");
-        var userInfo = await userInfoResponse.Content.ReadFromJsonAsync<GoogleUserInfo>();
+            var tokenEndpoint = "https://oauth2.googleapis.com/token";
+            var tokenRequest = new Dictionary<string, string>
+            {
+                { "code", code },
+                { "client_id", clientId },
+                { "client_secret", clientSecret },
+                { "redirect_uri", redirectUri },
+                { "grant_type", "authorization_code" }
+            };
 
-        if (userInfo == null)
-            return Unauthorized(new { error = "Falha ao obter informações do usuário." });
+            using var client = new HttpClient();
+            var tokenResponse = await client.PostAsync(tokenEndpoint, new FormUrlEncodedContent(tokenRequest));
+            var tokenData = await tokenResponse.Content.ReadFromJsonAsync<GoogleTokenResponse>();
 
-        var result = await _authService.HandleOAuthCallbackAsync(provider, userInfo.id ?? "", userInfo.email ?? "", userInfo.name ?? "");
-        return Redirect($"https://zeno-production-51bb.up.railway.app/auth/callback?token={result.Token}");
+            if (tokenData == null || string.IsNullOrEmpty(tokenData.access_token))
+                return Unauthorized(new { error = "Falha ao obter token do Google." });
+
+            var userInfoResponse = await client.GetAsync($"https://www.googleapis.com/oauth2/v2/userinfo?access_token={tokenData.access_token}");
+            var userInfo = await userInfoResponse.Content.ReadFromJsonAsync<GoogleUserInfo>();
+
+            if (userInfo == null)
+                return Unauthorized(new { error = "Falha ao obter informações do usuário." });
+
+            var result = await _authService.HandleOAuthCallbackAsync(provider, userInfo.id ?? "", userInfo.email ?? "", userInfo.name ?? "");
+            return Redirect($"https://zeno-production-51bb.up.railway.app/auth/callback?token={result.Token}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[OAuth Callback Error] {ex}");
+            return StatusCode(500, new { error = "Erro interno no callback OAuth.", details = ex.Message });
+        }
     }
 
     [HttpPost("logout")]
