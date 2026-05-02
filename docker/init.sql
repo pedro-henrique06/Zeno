@@ -3,7 +3,14 @@ CREATE TABLE IF NOT EXISTS Users (
     Name VARCHAR(100) NOT NULL,
     Email VARCHAR(200) NOT NULL,
     PasswordHash VARCHAR(500) NOT NULL,
-    CreatedAt TIMESTAMP NOT NULL
+    Phone VARCHAR(20),
+    Document VARCHAR(20),
+    BirthDate TIMESTAMP,
+    Provider INT NOT NULL DEFAULT 0,
+    ProviderId VARCHAR(200),
+    CreatedAt TIMESTAMP NOT NULL,
+    UpdatedAt TIMESTAMP,
+    EmailVerified BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS IX_Users_Email ON Users(Email);
