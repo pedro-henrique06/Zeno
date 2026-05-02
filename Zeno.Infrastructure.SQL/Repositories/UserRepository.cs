@@ -75,9 +75,11 @@ public class UserRepository : IUserRepository
 
     private User MapToUser(dynamic row)
     {
-        string? passwordHash = row.PasswordHash as string;
-        if (passwordHash == null && row.PasswordHash != null)
-            passwordHash = Encoding.UTF8.GetString(row.PasswordHash);
+        string? passwordHash = null;
+        if (row.PasswordHash is byte[] bytes)
+            passwordHash = Encoding.UTF8.GetString(bytes);
+        else if (row.PasswordHash != null)
+            passwordHash = row.PasswordHash.ToString();
 
         return new User
         {
