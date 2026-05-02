@@ -132,8 +132,17 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 
 app.Use(async (context, next) =>
 {
-    context.Request.Scheme = "https";
-    await next();
+    try
+    {
+        Console.WriteLine($"[Request] {context.Request.Method} {context.Request.Path}");
+        await next();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Unhandled Exception] {ex.Message}");
+        Console.WriteLine($"[StackTrace] {ex.StackTrace}");
+        throw;
+    }
 });
 
 app.UseExceptionHandler("/error");
