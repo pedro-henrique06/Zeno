@@ -1,3 +1,4 @@
+using System.Text;
 using Dapper;
 using Zeno.Domain.Interfaces;
 using Zeno.Domain.User;
@@ -74,22 +75,24 @@ public class UserRepository : IUserRepository
 
     private User MapToUser(dynamic row)
     {
-        var passwordHash = row.PasswordHash as string ?? row.PasswordHash?.ToString();
+        string? passwordHash = row.PasswordHash as string;
+        if (passwordHash == null && row.PasswordHash != null)
+            passwordHash = Encoding.UTF8.GetString(row.PasswordHash);
 
         return new User
         {
-            Id = row.Id,
-            Name = row.Name ?? string.Empty,
-            Email = row.Email ?? string.Empty,
+            Id = Guid.TryParse(row.Id?.ToString(), out Guid id) ? id : Guid.Empty,
+            Name = row.Name?.ToString() ?? string.Empty,
+            Email = row.Email?.ToString() ?? string.Empty,
             Phone = row.Phone as string,
             Document = row.Document as string,
-            BirthDate = row.BirthDate as DateTime?,
-            Provider = (OAuthProvider)(int)(row.Provider ?? 0),
+            BirthDate = row.BirthDate is DateTime dt ? dt : (row.BirthDate is not null ? DateTime.Parse(row.BirthDate.ToString()) : (DateTime?)null),
+            Provider = row.Provider is int pi ? (OAuthProvider)pi : OAuthProvider.None,
             ProviderId = row.ProviderId as string,
             PasswordHash = passwordHash,
-            CreatedAt = row.CreatedAt ?? DateTime.UtcNow,
-            UpdatedAt = row.UpdatedAt as DateTime?,
-            EmailVerified = row.EmailVerified ?? false
+            CreatedAt = row.CreatedAt is DateTime ct ? ct : DateTime.UtcNow,
+            UpdatedAt = row.UpdatedAt is DateTime ut ? ut : (DateTime?)null,
+            EmailVerified = row.EmailVerified is bool eb ? eb : false
         };
     }
 }
