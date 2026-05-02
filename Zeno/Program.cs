@@ -1,7 +1,6 @@
 using System.Text;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -101,30 +100,7 @@ builder.Services.AddAuthentication(options =>
         }
     };
 })
-.AddCookie("External")
-.AddGoogle("Google", options =>
-{
-    options.ClientId = builder.Configuration["OAuth:Google:ClientId"] ?? "";
-    options.ClientSecret = builder.Configuration["OAuth:Google:ClientSecret"] ?? "";
-    options.CallbackPath = "/api/auth/oauth/google/callback";
-    options.SaveTokens = true;
-    options.CorrelationCookie.HttpOnly = false;
-    options.CorrelationCookie.SameSite = SameSiteMode.Unspecified;
-    options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-    options.Events = new OAuthEvents
-    {
-        OnCreatingTicket = context =>
-        {
-            Console.WriteLine($"[GOOGLE] Token created for: {context.Identity?.Name}");
-            return Task.CompletedTask;
-        },
-        OnRemoteFailure = context =>
-        {
-            Console.WriteLine($"[GOOGLE Remote Failure] {context.Failure}");
-            return Task.CompletedTask;
-        }
-    };
-});
+.AddCookie("External");
 
 builder.Services.AddCors(options =>
 {
