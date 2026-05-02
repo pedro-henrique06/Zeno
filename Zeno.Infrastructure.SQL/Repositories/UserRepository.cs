@@ -17,7 +17,7 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> GetByIdAsync(Guid id)
     {
-        const string sql = @"SELECT Id, Name, Email, Phone, Document, BirthDate, Provider, ProviderId, PasswordHash, CreatedAt, UpdatedAt, EmailVerified
+        const string sql = @"SELECT Id, Name, Email, Phone, Document, BirthDate, Provider, ProviderId, passwordhash, CreatedAt, UpdatedAt, EmailVerified
                              FROM Users WHERE Id = @Id";
 
         var row = await _context.Connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { Id = id });
@@ -26,7 +26,7 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> GetByEmailAsync(string email)
     {
-        const string sql = @"SELECT Id, Name, Email, Phone, Document, BirthDate, Provider, ProviderId, PasswordHash, CreatedAt, UpdatedAt, EmailVerified
+        const string sql = @"SELECT Id, Name, Email, Phone, Document, BirthDate, Provider, ProviderId, passwordhash, CreatedAt, UpdatedAt, EmailVerified
                              FROM Users WHERE Email = @Email";
 
         var row = await _context.Connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { Email = email });
@@ -35,7 +35,7 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> GetByProviderAsync(string provider, string providerId)
     {
-        const string sql = @"SELECT Id, Name, Email, Phone, Document, BirthDate, Provider, ProviderId, PasswordHash, CreatedAt, UpdatedAt, EmailVerified
+        const string sql = @"SELECT Id, Name, Email, Phone, Document, BirthDate, Provider, ProviderId, passwordhash, CreatedAt, UpdatedAt, EmailVerified
                              FROM Users WHERE Provider = @Provider AND ProviderId = @ProviderId";
 
         var row = await _context.Connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { Provider = provider, ProviderId = providerId });
@@ -44,7 +44,7 @@ public class UserRepository : IUserRepository
 
     public async Task<User> CreateAsync(User user)
     {
-        const string sql = @"INSERT INTO Users (Id, Name, Email, Phone, Document, BirthDate, Provider, ProviderId, PasswordHash, CreatedAt, UpdatedAt, EmailVerified)
+        const string sql = @"INSERT INTO Users (Id, Name, Email, Phone, Document, BirthDate, Provider, ProviderId, passwordhash, CreatedAt, UpdatedAt, EmailVerified)
                              VALUES (@Id, @Name, @Email, @Phone, @Document, @BirthDate, @Provider, @ProviderId, @PasswordHash, @CreatedAt, @UpdatedAt, @EmailVerified)";
 
         await _context.Connection.ExecuteAsync(sql, new
