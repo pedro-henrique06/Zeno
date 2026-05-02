@@ -119,7 +119,7 @@ builder.Services.AddAuthentication(options =>
         },
         OnRemoteFailure = context =>
         {
-            Console.WriteLine($"[GOOGLE Remote Failure] {context.Error}");
+            Console.WriteLine($"[GOOGLE Remote Failure] {context.Failure}");
             return Task.CompletedTask;
         }
     };
