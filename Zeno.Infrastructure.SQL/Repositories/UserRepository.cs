@@ -75,6 +75,8 @@ public class UserRepository : IUserRepository
 
     private User MapToUser(dynamic row)
     {
+        Console.WriteLine($"[MapToUser] DEBUG - PasswordHash type: {row.PasswordHash?.GetType().Name}, value: '{row.PasswordHash}', is null: {row.PasswordHash == null}");
+
         string? passwordHash = null;
         if (row.PasswordHash != null)
         {
@@ -85,6 +87,8 @@ public class UserRepository : IUserRepository
             else
                 passwordHash = Convert.ToString(row.PasswordHash);
         }
+
+        Console.WriteLine($"[MapToUser] DEBUG - Final passwordHash: '{passwordHash}'");
 
         return new User
         {
