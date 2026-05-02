@@ -76,18 +76,18 @@ public class UserRepository : IUserRepository
     {
         return new User
         {
-            Id = row.Id,
-            Name = row.Name,
-            Email = row.Email,
-            Phone = row.Phone,
-            Document = row.Document,
-            BirthDate = row.BirthDate,
-            Provider = (OAuthProvider)(int)row.Provider,
-            ProviderId = row.ProviderId,
-            PasswordHash = row.PasswordHash,
-            CreatedAt = row.CreatedAt,
-            UpdatedAt = row.UpdatedAt,
-            EmailVerified = row.EmailVerified
+            Id = Guid.TryParse(row.Id?.ToString(), out var id) ? id : Guid.Empty,
+            Name = row.Name ?? string.Empty,
+            Email = row.Email ?? string.Empty,
+            Phone = row.Phone as string,
+            Document = row.Document as string,
+            BirthDate = row.BirthDate as DateTime?,
+            Provider = Enum.TryParse<OAuthProvider>(row.Provider?.ToString(), out var prov) ? prov : OAuthProvider.None,
+            ProviderId = row.ProviderId as string,
+            PasswordHash = row.PasswordHash ?? string.Empty,
+            CreatedAt = row.CreatedAt ?? DateTime.UtcNow,
+            UpdatedAt = row.UpdatedAt as DateTime?,
+            EmailVerified = bool.TryParse(row.EmailVerified?.ToString(), out var ev) ? ev : false
         };
     }
 }
