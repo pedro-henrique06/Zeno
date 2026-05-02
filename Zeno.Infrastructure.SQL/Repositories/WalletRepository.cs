@@ -19,8 +19,8 @@ public class WalletRepository : IWalletRepository
 
     public async Task<Wallet?> GetByIdAsync(Guid id)
     {
-        const string sql = @"SELECT Id, Name, Description, Balance, UserId, Currency, CreatedAt
-                             FROM Wallets WHERE Id = @Id";
+        const string sql = @"SELECT id, name, description, balance, user_id, currency, createdat
+                             FROM wallets WHERE id = @Id";
 
         var row = await _context.Connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { Id = id });
         return row is null ? null : MapToWallet(row);
@@ -28,8 +28,8 @@ public class WalletRepository : IWalletRepository
 
     public async Task<Wallet?> GetByIdAndUserAsync(Guid id, Guid userId)
     {
-        const string sql = @"SELECT Id, Name, Description, Balance, UserId, Currency, CreatedAt
-                             FROM Wallets WHERE Id = @Id AND UserId = @UserId";
+        const string sql = @"SELECT id, name, description, balance, user_id, currency, createdat
+                             FROM wallets WHERE id = @Id AND user_id = @UserId";
 
         var row = await _context.Connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { Id = id, UserId = userId });
         return row is null ? null : MapToWallet(row);
@@ -37,8 +37,8 @@ public class WalletRepository : IWalletRepository
 
     public async Task<IEnumerable<Wallet>> GetAllByUserAsync(Guid userId)
     {
-        const string sql = @"SELECT Id, Name, Description, Balance, UserId, Currency, CreatedAt
-                             FROM Wallets WHERE UserId = @UserId ORDER BY CreatedAt DESC";
+        const string sql = @"SELECT id, name, description, balance, user_id, currency, createdat
+                             FROM wallets WHERE user_id = @UserId ORDER BY createdat DESC";
 
         var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { UserId = userId });
         return rows.Select(r => MapToWallet(r)).Cast<Wallet>();
@@ -46,8 +46,8 @@ public class WalletRepository : IWalletRepository
 
     public async Task<IEnumerable<Wallet>> GetByUserIdAsync(Guid userId)
     {
-        const string sql = @"SELECT Id, Name, Description, UserId, Balance, Currency, CreatedAt
-                             FROM Wallets WHERE UserId = @UserId ORDER BY CreatedAt DESC";
+        const string sql = @"SELECT id, name, description, balance, user_id, currency, createdat
+                             FROM wallets WHERE user_id = @UserId ORDER BY createdat DESC";
 
         var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { UserId = userId });
         return rows.Select(r => MapToWallet(r)).Cast<Wallet>();
@@ -55,7 +55,7 @@ public class WalletRepository : IWalletRepository
 
     public async Task<Wallet> CreateAsync(Wallet wallet)
     {
-        const string sql = @"INSERT INTO Wallets (Id, Name, Description, Balance, UserId, Currency, CreatedAt)
+        const string sql = @"INSERT INTO wallets (id, name, description, balance, user_id, currency, createdat)
                              VALUES (@Id, @Name, @Description, @Balance, @UserId, @Currency, @CreatedAt)";
 
         await _context.Connection.ExecuteAsync(sql, new
@@ -74,9 +74,9 @@ public class WalletRepository : IWalletRepository
 
     public async Task<Wallet> UpdateAsync(Wallet wallet)
     {
-        const string sql = @"UPDATE Wallets
-                             SET Name = @Name, Description = @Description, Currency = @Currency
-                             WHERE Id = @Id";
+        const string sql = @"UPDATE wallets
+                             SET name = @Name, description = @Description, currency = @Currency
+                             WHERE id = @Id";
 
         await _context.Connection.ExecuteAsync(sql, new
         {
@@ -91,7 +91,7 @@ public class WalletRepository : IWalletRepository
 
     public async Task DeleteAsync(Guid id)
     {
-        const string sql = @"DELETE FROM Wallets WHERE Id = @Id";
+        const string sql = @"DELETE FROM wallets WHERE id = @Id";
         await _context.Connection.ExecuteAsync(sql, new { Id = id });
     }
 
@@ -101,25 +101,25 @@ public class WalletRepository : IWalletRepository
         if (current is not null)
         {
             var newBalance = current.Balance + amount;
-            const string sql = @"UPDATE Wallets SET Balance = @Balance WHERE Id = @Id";
+            const string sql = @"UPDATE wallets SET balance = @Balance WHERE id = @Id";
             await _context.Connection.ExecuteAsync(sql, new { Id = id, Balance = _encryption.EncryptDecimal(newBalance) });
         }
     }
 
     private Wallet MapToWallet(dynamic row)
     {
-        var balance = row.Balance is string s
+        var balance = row.balance is string s
             ? _encryption.DecryptDecimal(s)
-            : (decimal)row.Balance;
+            : (decimal)row.balance;
         return new Wallet
         {
-            Id = row.Id,
-            Name = row.Name,
-            Description = row.Description,
-            UserId = row.UserId,
+            Id = row.id,
+            Name = row.name,
+            Description = row.description,
+            UserId = row.user_id,
             Balance = balance,
-            Currency = row.Currency,
-            CreatedAt = row.CreatedAt
+            Currency = row.currency,
+            CreatedAt = row.createdat
         };
     }
 }

@@ -20,37 +20,37 @@ public class AccountRepository : IAccountRepository
 
     public async Task<Account?> GetByIdAsync(Guid id)
     {
-        const string sql = @"SELECT Id, Name, Bank, Type, Balance, WalletId, CreatedAt
-                             FROM Accounts WHERE Id = @Id";
+        const string sql = @"SELECT id, name, bank, type, balance, wallet_id, createdat
+                             FROM accounts WHERE id = @Id";
 
         var row = await _context.Connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { Id = id });
-        return row is null ? null : MapToAccount(row, false);
+        return row is null ? null : MapToAccount(row);
     }
 
     public async Task<IEnumerable<Account>> GetByWalletIdAsync(Guid walletId)
     {
-        const string sql = @"SELECT Id, Name, Bank, Type, Balance, WalletId, CreatedAt
-                             FROM Accounts WHERE WalletId = @WalletId ORDER BY CreatedAt DESC";
+        const string sql = @"SELECT id, name, bank, type, balance, wallet_id, createdat
+                             FROM accounts WHERE wallet_id = @WalletId ORDER BY createdat DESC";
 
         var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { WalletId = walletId });
-        return rows.Select(r => MapToAccount(r, false)).Cast<Account>();
+        return rows.Select(r => MapToAccount(r)).Cast<Account>();
     }
 
     public async Task<IEnumerable<Account>> GetByUserIdAsync(Guid userId)
     {
-        const string sql = @"SELECT a.Id, a.Name, a.Bank, a.Type, a.Balance, a.WalletId, a.CreatedAt
-                             FROM Accounts a
-                             INNER JOIN Wallets w ON w.Id = a.WalletId
-                             WHERE w.UserId = @UserId
-                             ORDER BY a.CreatedAt DESC";
+        const string sql = @"SELECT a.id, a.name, a.bank, a.type, a.balance, a.wallet_id, a.createdat
+                             FROM accounts a
+                             INNER JOIN wallets w ON w.id = a.wallet_id
+                             WHERE w.user_id = @UserId
+                             ORDER BY a.createdat DESC";
 
         var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { UserId = userId });
-        return rows.Select(r => MapToAccount(r, false)).Cast<Account>();
+        return rows.Select(r => MapToAccount(r)).Cast<Account>();
     }
 
     public async Task<Account> CreateAsync(Account account)
     {
-        const string sql = @"INSERT INTO Accounts (Id, Name, Bank, Type, Balance, WalletId, CreatedAt)
+        const string sql = @"INSERT INTO accounts (id, name, bank, type, balance, wallet_id, createdat)
                              VALUES (@Id, @Name, @Bank, @Type, @Balance, @WalletId, @CreatedAt)";
 
         await _context.Connection.ExecuteAsync(sql, new
@@ -69,9 +69,9 @@ public class AccountRepository : IAccountRepository
 
     public async Task<Account> UpdateAsync(Account account)
     {
-        const string sql = @"UPDATE Accounts
-                             SET Name = @Name, Bank = @Bank, Type = @Type
-                             WHERE Id = @Id";
+        const string sql = @"UPDATE accounts
+                             SET name = @Name, bank = @Bank, type = @Type
+                             WHERE id = @Id";
 
         await _context.Connection.ExecuteAsync(sql, new
         {
@@ -86,30 +86,30 @@ public class AccountRepository : IAccountRepository
 
     public async Task DeleteAsync(Guid id)
     {
-        const string sql = @"DELETE FROM Accounts WHERE Id = @Id";
+        const string sql = @"DELETE FROM accounts WHERE id = @Id";
         await _context.Connection.ExecuteAsync(sql, new { Id = id });
     }
 
     public async Task UpdateBalanceAsync(Guid id, decimal newBalance)
     {
-        const string sql = @"UPDATE Accounts SET Balance = @Balance WHERE Id = @Id";
+        const string sql = @"UPDATE accounts SET balance = @Balance WHERE id = @Id";
         await _context.Connection.ExecuteAsync(sql, new { Id = id, Balance = _encryption.EncryptDecimal(newBalance) });
     }
 
-    private Account MapToAccount(dynamic row, bool decrypt)
+    private Account MapToAccount(dynamic row)
     {
-        var balance = row.Balance is string s
+        var balance = row.balance is string s
             ? _encryption.DecryptDecimal(s)
-            : (decimal)row.Balance;
+            : (decimal)row.balance;
         return new Account
         {
-            Id = row.Id,
-            Name = row.Name,
-            Bank = row.Bank,
-            Type = row.Type,
+            Id = row.id,
+            Name = row.name,
+            Bank = row.bank,
+            Type = row.type,
             Balance = balance,
-            WalletId = row.WalletId,
-            CreatedAt = row.CreatedAt
+            WalletId = row.wallet_id,
+            CreatedAt = row.createdat
         };
     }
 }

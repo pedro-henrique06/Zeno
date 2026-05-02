@@ -19,56 +19,56 @@ public class SalaryRepository : ISalaryRepository
 
     public async Task<Salary?> GetByIdAsync(Guid id)
     {
-        const string sql = @"SELECT Id, UserId, AccountId, Amount, Description, DayOfMonth, Active, CreatedAt, LastProcessedAt
-                             FROM Salaries WHERE Id = @Id";
+        const string sql = @"SELECT id, user_id, account_id, amount, description, day_of_month, active, created_at, last_processed_at
+                             FROM salaries WHERE id = @Id";
         var row = await _context.Connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { Id = id });
         return row is null ? null : MapToSalary(row);
     }
 
     public async Task<Salary?> GetByIdAndUserAsync(Guid id, Guid userId)
     {
-        const string sql = @"SELECT s.Id, s.AccountId, s.Amount, s.Description, s.DayOfMonth, s.Active, s.CreatedAt, s.LastProcessedAt
-                             FROM Salaries s
-                             INNER JOIN Accounts a ON s.AccountId = a.Id
-                             INNER JOIN Wallets w ON a.WalletId = w.Id
-                             WHERE s.Id = @Id AND w.UserId = @UserId";
+        const string sql = @"SELECT s.id, s.account_id, s.amount, s.description, s.day_of_month, s.active, s.created_at, s.last_processed_at
+                             FROM salaries s
+                             INNER JOIN accounts a ON s.account_id = a.id
+                             INNER JOIN wallets w ON a.wallet_id = w.id
+                             WHERE s.id = @Id AND w.user_id = @UserId";
         var row = await _context.Connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { Id = id, UserId = userId });
         return row is null ? null : MapToSalary(row);
     }
 
     public async Task<IEnumerable<Salary>> GetByAccountAsync(Guid accountId)
     {
-        const string sql = @"SELECT Id, UserId, AccountId, Amount, Description, DayOfMonth, Active, CreatedAt, LastProcessedAt
-                             FROM Salaries WHERE AccountId = @AccountId ORDER BY DayOfMonth";
+        const string sql = @"SELECT id, user_id, account_id, amount, description, day_of_month, active, created_at, last_processed_at
+                             FROM salaries WHERE account_id = @AccountId ORDER BY day_of_month";
         var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { AccountId = accountId });
         return rows.Select(r => MapToSalary(r)).Cast<Salary>();
     }
 
     public async Task<IEnumerable<Salary>> GetByUserAsync(Guid userId)
     {
-        const string sql = @"SELECT s.Id, s.AccountId, s.Amount, s.Description, s.DayOfMonth, s.Active, s.CreatedAt, s.LastProcessedAt
-                             FROM Salaries s
-                             INNER JOIN Accounts a ON s.AccountId = a.Id
-                             INNER JOIN Wallets w ON a.WalletId = w.Id
-                             WHERE w.UserId = @UserId
-                             ORDER BY s.DayOfMonth";
+        const string sql = @"SELECT s.id, s.account_id, s.amount, s.description, s.day_of_month, s.active, s.created_at, s.last_processed_at
+                             FROM salaries s
+                             INNER JOIN accounts a ON s.account_id = a.id
+                             INNER JOIN wallets w ON a.wallet_id = w.id
+                             WHERE w.user_id = @UserId
+                             ORDER BY s.day_of_month";
         var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { UserId = userId });
         return rows.Select(r => MapToSalary(r)).Cast<Salary>();
     }
 
     public async Task<IEnumerable<Salary>> GetPendingSalariesAsync(int dayOfMonth)
     {
-        const string sql = @"SELECT Id, UserId, AccountId, Amount, Description, DayOfMonth, Active, CreatedAt, LastProcessedAt
-                             FROM Salaries
-                             WHERE Active = true AND DayOfMonth = @DayOfMonth
-                             AND (LastProcessedAt IS NULL OR EXTRACT(MONTH FROM LastProcessedAt) != EXTRACT(MONTH FROM NOW()) OR EXTRACT(YEAR FROM LastProcessedAt) != EXTRACT(YEAR FROM NOW()))";
+        const string sql = @"SELECT id, user_id, account_id, amount, description, day_of_month, active, created_at, last_processed_at
+                             FROM salaries
+                             WHERE active = true AND day_of_month = @DayOfMonth
+                             AND (last_processed_at IS NULL OR EXTRACT(MONTH FROM last_processed_at) != EXTRACT(MONTH FROM NOW()) OR EXTRACT(YEAR FROM last_processed_at) != EXTRACT(YEAR FROM NOW()))";
         var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { DayOfMonth = dayOfMonth });
         return rows.Select(r => MapToSalary(r)).Cast<Salary>();
     }
 
     public async Task<Salary> CreateAsync(Salary salary)
     {
-        const string sql = @"INSERT INTO Salaries (Id, UserId, AccountId, Amount, Description, DayOfMonth, Active, CreatedAt, LastProcessedAt)
+        const string sql = @"INSERT INTO salaries (id, user_id, account_id, amount, description, day_of_month, active, created_at, last_processed_at)
                              VALUES (@Id, @UserId, @AccountId, @Amount, @Description, @DayOfMonth, @Active, @CreatedAt, @LastProcessedAt)";
         await _context.Connection.ExecuteAsync(sql, new
         {
@@ -87,9 +87,9 @@ public class SalaryRepository : ISalaryRepository
 
     public async Task<Salary> UpdateAsync(Salary salary)
     {
-        const string sql = @"UPDATE Salaries
-                            SET Amount = @Amount, Description = @Description, DayOfMonth = @DayOfMonth, Active = @Active, AccountId = @AccountId
-                            WHERE Id = @Id";
+        const string sql = @"UPDATE salaries
+                             SET amount = @Amount, description = @Description, day_of_month = @DayOfMonth, active = @Active, account_id = @AccountId
+                             WHERE id = @Id";
         await _context.Connection.ExecuteAsync(sql, new
         {
             salary.Id,
@@ -104,32 +104,32 @@ public class SalaryRepository : ISalaryRepository
 
     public async Task DeleteAsync(Guid id)
     {
-        const string sql = @"DELETE FROM Salaries WHERE Id = @Id";
+        const string sql = @"DELETE FROM salaries WHERE id = @Id";
         await _context.Connection.ExecuteAsync(sql, new { Id = id });
     }
 
     public async Task MarkProcessedAsync(Guid id)
     {
-        const string sql = @"UPDATE Salaries SET LastProcessedAt = NOW() WHERE Id = @Id";
+        const string sql = @"UPDATE salaries SET last_processed_at = NOW() WHERE id = @Id";
         await _context.Connection.ExecuteAsync(sql, new { Id = id });
     }
 
     private Salary MapToSalary(dynamic row)
     {
-        var amount = row.Amount is string s
+        var amount = row.amount is string s
             ? _encryption.DecryptDecimal(s)
-            : (decimal)row.Amount;
+            : (decimal)row.amount;
         return new Salary
         {
-            Id = row.Id,
-            UserId = row.UserId,
-            AccountId = row.AccountId,
+            Id = row.id,
+            UserId = row.user_id,
+            AccountId = row.account_id,
             Amount = amount,
-            Description = row.Description,
-            DayOfMonth = row.DayOfMonth,
-            Active = row.Active,
-            CreatedAt = row.CreatedAt,
-            LastProcessedAt = row.LastProcessedAt
+            Description = row.description,
+            DayOfMonth = row.day_of_month,
+            Active = row.active,
+            CreatedAt = row.created_at,
+            LastProcessedAt = row.last_processed_at
         };
     }
 }
