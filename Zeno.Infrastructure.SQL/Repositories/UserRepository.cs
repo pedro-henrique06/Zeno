@@ -74,9 +74,17 @@ public class UserRepository : IUserRepository
 
     private User MapToUser(dynamic row)
     {
-        Guid.TryParse(row.Id?.ToString(), out Guid id);
-        Enum.TryParse<OAuthProvider>(row.Provider?.ToString(), out OAuthProvider prov);
-        bool.TryParse(row.EmailVerified?.ToString(), out bool ev);
+        Guid id = Guid.Empty;
+        string idStr = row.Id != null ? row.Id.ToString() : null;
+        if (!string.IsNullOrEmpty(idStr)) Guid.TryParse(idStr, out id);
+
+        OAuthProvider prov = OAuthProvider.None;
+        string provStr = row.Provider != null ? row.Provider.ToString() : null;
+        if (!string.IsNullOrEmpty(provStr)) Enum.TryParse(provStr, out prov);
+
+        bool ev = false;
+        string evStr = row.EmailVerified != null ? row.EmailVerified.ToString() : null;
+        if (!string.IsNullOrEmpty(evStr)) bool.TryParse(evStr, out ev);
 
         return new User
         {
