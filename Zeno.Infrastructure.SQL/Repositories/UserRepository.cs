@@ -74,32 +74,22 @@ public class UserRepository : IUserRepository
 
     private User MapToUser(dynamic row)
     {
-        Guid id = Guid.Empty;
-        string idStr = row.Id != null ? row.Id.ToString() : null;
-        if (!string.IsNullOrEmpty(idStr)) Guid.TryParse(idStr, out id);
-
-        OAuthProvider prov = OAuthProvider.None;
-        string provStr = row.Provider != null ? row.Provider.ToString() : null;
-        if (!string.IsNullOrEmpty(provStr)) Enum.TryParse(provStr, out prov);
-
-        bool ev = false;
-        string evStr = row.EmailVerified != null ? row.EmailVerified.ToString() : null;
-        if (!string.IsNullOrEmpty(evStr)) bool.TryParse(evStr, out ev);
+        var passwordHash = row.PasswordHash as string ?? row.PasswordHash?.ToString();
 
         return new User
         {
-            Id = id,
+            Id = row.Id,
             Name = row.Name ?? string.Empty,
             Email = row.Email ?? string.Empty,
             Phone = row.Phone as string,
             Document = row.Document as string,
             BirthDate = row.BirthDate as DateTime?,
-            Provider = prov,
+            Provider = (OAuthProvider)(int)(row.Provider ?? 0),
             ProviderId = row.ProviderId as string,
-            PasswordHash = row.PasswordHash != null ? row.PasswordHash.ToString() : null,
+            PasswordHash = passwordHash,
             CreatedAt = row.CreatedAt ?? DateTime.UtcNow,
             UpdatedAt = row.UpdatedAt as DateTime?,
-            EmailVerified = ev
+            EmailVerified = row.EmailVerified ?? false
         };
     }
 }
