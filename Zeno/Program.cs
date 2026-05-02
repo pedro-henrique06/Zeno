@@ -108,8 +108,9 @@ builder.Services.AddAuthentication(options =>
     options.ClientSecret = builder.Configuration["OAuth:Google:ClientSecret"] ?? "";
     options.CallbackPath = "/api/auth/oauth/google/callback";
     options.SaveTokens = true;
-    options.CorrelationCookie.SameSite = SameSiteMode.Lax;
-    options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.CorrelationCookie.HttpOnly = false;
+    options.CorrelationCookie.SameSite = SameSiteMode.Unspecified;
+    options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     options.Events = new OAuthEvents
     {
         OnCreatingTicket = context =>
