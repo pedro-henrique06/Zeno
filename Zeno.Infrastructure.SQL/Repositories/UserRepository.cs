@@ -74,20 +74,24 @@ public class UserRepository : IUserRepository
 
     private User MapToUser(dynamic row)
     {
+        Guid.TryParse(row.Id?.ToString(), out Guid id);
+        Enum.TryParse<OAuthProvider>(row.Provider?.ToString(), out OAuthProvider prov);
+        bool.TryParse(row.EmailVerified?.ToString(), out bool ev);
+
         return new User
         {
-            Id = Guid.TryParse(row.Id?.ToString(), out var id) ? id : Guid.Empty,
+            Id = id,
             Name = row.Name ?? string.Empty,
             Email = row.Email ?? string.Empty,
             Phone = row.Phone as string,
             Document = row.Document as string,
             BirthDate = row.BirthDate as DateTime?,
-            Provider = Enum.TryParse<OAuthProvider>(row.Provider?.ToString(), out var prov) ? prov : OAuthProvider.None,
+            Provider = prov,
             ProviderId = row.ProviderId as string,
             PasswordHash = row.PasswordHash ?? string.Empty,
             CreatedAt = row.CreatedAt ?? DateTime.UtcNow,
             UpdatedAt = row.UpdatedAt as DateTime?,
-            EmailVerified = bool.TryParse(row.EmailVerified?.ToString(), out var ev) ? ev : false
+            EmailVerified = ev
         };
     }
 }
