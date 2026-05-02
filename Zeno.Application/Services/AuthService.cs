@@ -33,42 +33,60 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
     {
-        await ValidateAsync<LoginRequestValidator, LoginRequest>(request);
+        Console.WriteLine($"[LoginAsync] Starting - Email: {request.Email}");
 
-        var user = await _userRepository.GetByEmailAsync(request.Email)
-            ?? throw new AppValidationException(new FluentValidation.Results.ValidationResult(
-                new List<FvValidationFailure>
-                {
-                    new("Email", "Usuário não encontrado.")
-                }));
-
-        if (user.Provider != OAuthProvider.None && !string.IsNullOrEmpty(user.ProviderId))
-            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
-                new List<FvValidationFailure>
-                {
-                    new("Email", "Este e-mail está cadastrado via OAuth. Faça login com o provedor correspondente.")
-                }));
-
-        if (string.IsNullOrEmpty(user.PasswordHash) || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
-                new List<FvValidationFailure>
-                {
-                    new("Password", "Senha inválida.")
-                }));
-
-        var token = GenerateJwtToken(user);
-
-        return new AuthResponse
+        try
         {
-            UserId = user.Id,
-            Name = user.Name,
-            Email = user.Email,
-            Phone = user.Phone,
-            Document = user.Document,
-            BirthDate = user.BirthDate,
-            OAuthProvider = user.Provider.ToString(),
-            Token = token
-        };
+            await ValidateAsync<LoginRequestValidator, LoginRequest>(request);
+            Console.WriteLine("[LoginAsync] Validation passed");
+
+            var user = await _userRepository.GetByEmailAsync(request.Email);
+            Console.WriteLine($"[LoginAsync] User found: {user != null}");
+
+            if (user is null)
+                throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                    new List<FvValidationFailure>
+                    {
+                        new("Email", "Usuário não encontrado.")
+                    }));
+
+            Console.WriteLine($"[LoginAsync] Provider: {user.Provider}, PasswordHash null: {string.IsNullOrEmpty(user.PasswordHash)}");
+
+            if (user.Provider != OAuthProvider.None && !string.IsNullOrEmpty(user.ProviderId))
+                throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                    new List<FvValidationFailure>
+                    {
+                        new("Email", "Este e-mail está cadastrado via OAuth. Faça login com o provedor correspondente.")
+                    }));
+
+            if (string.IsNullOrEmpty(user.PasswordHash) || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+                throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                    new List<FvValidationFailure>
+                    {
+                        new("Password", "Senha inválida.")
+                    }));
+
+            var token = GenerateJwtToken(user);
+            Console.WriteLine("[LoginAsync] Success!");
+
+            return new AuthResponse
+            {
+                UserId = user.Id,
+                Name = user.Name,
+                Email = user.Email,
+                Phone = user.Phone,
+                Document = user.Document,
+                BirthDate = user.BirthDate,
+                OAuthProvider = user.Provider.ToString(),
+                Token = token
+            };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[LoginAsync] EXCEPTION: {ex.GetType().FullName}: {ex.Message}");
+            Console.WriteLine($"[LoginAsync] Stack: {ex.StackTrace}");
+            throw;
+        }
     }
 
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
