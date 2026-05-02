@@ -75,6 +75,12 @@ public class UserRepository : IUserRepository
 
     private User MapToUser(dynamic row)
     {
+        Guid id = Guid.Empty;
+        if (row.id is Guid rowId)
+            id = rowId;
+        else if (row.id is string rowIdStr && Guid.TryParse(rowIdStr, out Guid parsedId))
+            id = parsedId;
+
         string? passwordHash = null;
         if (row.passwordhash != null)
         {
@@ -88,7 +94,7 @@ public class UserRepository : IUserRepository
 
         return new User
         {
-            Id = Guid.TryParse((string)row.id, out Guid id) ? id : Guid.Empty,
+            Id = id,
             Name = row.name?.ToString() ?? string.Empty,
             Email = row.email?.ToString() ?? string.Empty,
             Phone = row.phone as string,
