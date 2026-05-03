@@ -1,5 +1,4 @@
 using Dapper;
-using Zeno.Application.Interfaces;
 using Zeno.Domain.Entry;
 using Zeno.Domain.Enum;
 using Zeno.Domain.Interfaces;
@@ -10,12 +9,10 @@ namespace Zeno.Infrastructure.SQL.Repositories;
 public class EntryRepository : IEntryRepository
 {
     private readonly ZenoDbContext _context;
-    private readonly IEncryptionService _encryption;
 
-    public EntryRepository(ZenoDbContext context, IEncryptionService encryption)
+    public EntryRepository(ZenoDbContext context)
     {
         _context = context;
-        _encryption = encryption;
     }
 
     public async Task<Entry?> GetByIdAsync(Guid id)
@@ -46,7 +43,7 @@ public class EntryRepository : IEntryRepository
         {
             entry.Id,
             entry.Title,
-            Value = _encryption.EncryptDecimal(entry.Value),
+            entry.Value,
             Type = (int)entry.Type,
             entry.Description,
             Category = (int)entry.Category,
@@ -68,7 +65,7 @@ public class EntryRepository : IEntryRepository
         {
             entry.Id,
             entry.Title,
-            Value = _encryption.EncryptDecimal(entry.Value),
+            entry.Value,
             Type = (int)entry.Type,
             entry.Description,
             Category = (int)entry.Category,
@@ -87,14 +84,11 @@ public class EntryRepository : IEntryRepository
 
     private Entry MapToEntry(dynamic row)
     {
-        var value = row.value is string s
-            ? _encryption.DecryptDecimal(s)
-            : (decimal)row.value;
         return new Entry
         {
             Id = row.id,
             Title = row.title,
-            Value = value,
+            Value = (decimal)row.value,
             Type = (EntryType)(int)row.type,
             Description = row.description,
             Category = (Category)(int)row.category,

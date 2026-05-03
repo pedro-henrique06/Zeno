@@ -1,5 +1,4 @@
 using Dapper;
-using Zeno.Application.Interfaces;
 using Zeno.Domain.Interfaces;
 using Zeno.Domain.Salary;
 using Zeno.Infrastructure.SQL.Context;
@@ -9,12 +8,10 @@ namespace Zeno.Infrastructure.SQL.Repositories;
 public class SalaryRepository : ISalaryRepository
 {
     private readonly ZenoDbContext _context;
-    private readonly IEncryptionService _encryption;
 
-    public SalaryRepository(ZenoDbContext context, IEncryptionService encryption)
+    public SalaryRepository(ZenoDbContext context)
     {
         _context = context;
-        _encryption = encryption;
     }
 
     public async Task<Salary?> GetByIdAsync(Guid id)
@@ -30,7 +27,7 @@ public class SalaryRepository : ISalaryRepository
         const string sql = @"SELECT s.id, s.accountid, s.amount, s.description, s.dayofmonth, s.active, s.createdat, s.lastprocessedat
                              FROM salaries s
                              INNER JOIN accounts a ON s.accountid = a.id
-                             INNER JOIN wallets w ON a.walletid = w.id
+                             INNER JOIN wallets w ON a.wallet_id = w.id
                              WHERE s.id = @Id AND w.userid = @UserId";
         var row = await _context.Connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { Id = id, UserId = userId });
         return row is null ? null : MapToSalary(row);
@@ -49,7 +46,7 @@ public class SalaryRepository : ISalaryRepository
         const string sql = @"SELECT s.id, s.accountid, s.amount, s.description, s.dayofmonth, s.active, s.createdat, s.lastprocessedat
                              FROM salaries s
                              INNER JOIN accounts a ON s.accountid = a.id
-                             INNER JOIN wallets w ON a.walletid = w.id
+                             INNER JOIN wallets w ON a.wallet_id = w.id
                              WHERE w.userid = @UserId
                              ORDER BY s.dayofmonth";
         var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { UserId = userId });
@@ -75,7 +72,7 @@ public class SalaryRepository : ISalaryRepository
             salary.Id,
             salary.UserId,
             salary.AccountId,
-            Amount = _encryption.EncryptDecimal(salary.Amount),
+            salary.Amount,
             salary.Description,
             salary.DayOfMonth,
             salary.Active,
@@ -94,7 +91,7 @@ public class SalaryRepository : ISalaryRepository
         {
             salary.Id,
             salary.AccountId,
-            Amount = _encryption.EncryptDecimal(salary.Amount),
+            salary.Amount,
             salary.Description,
             salary.DayOfMonth,
             salary.Active
@@ -116,15 +113,12 @@ public class SalaryRepository : ISalaryRepository
 
     private Salary MapToSalary(dynamic row)
     {
-        var amount = row.amount is string s
-            ? _encryption.DecryptDecimal(s)
-            : (decimal)row.amount;
         return new Salary
         {
             Id = row.id,
             UserId = row.userid,
             AccountId = row.accountid,
-            Amount = amount,
+            Amount = (decimal)row.amount,
             Description = row.description,
             DayOfMonth = row.dayofmonth,
             Active = row.active,

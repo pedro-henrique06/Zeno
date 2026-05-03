@@ -9,12 +9,10 @@ namespace Zeno.Infrastructure.SQL.Repositories;
 public class WalletRepository : IWalletRepository
 {
     private readonly ZenoDbContext _context;
-    private readonly IEncryptionService _encryption;
 
-    public WalletRepository(ZenoDbContext context, IEncryptionService encryption)
+    public WalletRepository(ZenoDbContext context)
     {
         _context = context;
-        _encryption = encryption;
     }
 
     public async Task<Wallet?> GetByIdAsync(Guid id)
@@ -63,7 +61,7 @@ public class WalletRepository : IWalletRepository
             wallet.Id,
             wallet.Name,
             wallet.Description,
-            Balance = _encryption.EncryptDecimal(wallet.Balance),
+            wallet.Balance,
             UserId = wallet.UserId,
             wallet.Currency,
             wallet.CreatedAt
@@ -97,27 +95,19 @@ public class WalletRepository : IWalletRepository
 
     public async Task AddBalanceAsync(Guid id, decimal amount)
     {
-        var current = await GetByIdAsync(id);
-        if (current is not null)
-        {
-            var newBalance = current.Balance + amount;
-            const string sql = @"UPDATE wallets SET balance = @Balance WHERE id = @Id";
-            await _context.Connection.ExecuteAsync(sql, new { Id = id, Balance = _encryption.EncryptDecimal(newBalance) });
-        }
+        const string sql = @"UPDATE wallets SET balance = balance + @Amount WHERE id = @Id";
+        await _context.Connection.ExecuteAsync(sql, new { Id = id, Amount = amount });
     }
 
     private Wallet MapToWallet(dynamic row)
     {
-        var balance = row.balance is string s
-            ? _encryption.DecryptDecimal(s)
-            : (decimal)row.balance;
         return new Wallet
         {
             Id = row.id,
             Name = row.name,
             Description = row.description,
             UserId = row.userid,
-            Balance = balance,
+            Balance = (decimal)row.balance,
             Currency = row.currency,
             CreatedAt = row.createdat
         };

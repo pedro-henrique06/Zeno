@@ -10,12 +10,10 @@ namespace Zeno.Infrastructure.SQL.Repositories;
 public class AccountRepository : IAccountRepository
 {
     private readonly ZenoDbContext _context;
-    private readonly IEncryptionService _encryption;
 
-    public AccountRepository(ZenoDbContext context, IEncryptionService encryption)
+    public AccountRepository(ZenoDbContext context)
     {
         _context = context;
-        _encryption = encryption;
     }
 
     public async Task<Account?> GetByIdAsync(Guid id)
@@ -59,7 +57,7 @@ public class AccountRepository : IAccountRepository
             account.Name,
             account.Bank,
             account.Type,
-            Balance = _encryption.EncryptDecimal(account.Balance),
+            account.Balance,
             account.WalletId,
             account.CreatedAt
         });
@@ -93,21 +91,18 @@ public class AccountRepository : IAccountRepository
     public async Task UpdateBalanceAsync(Guid id, decimal newBalance)
     {
         const string sql = @"UPDATE accounts SET balance = @Balance WHERE id = @Id";
-        await _context.Connection.ExecuteAsync(sql, new { Id = id, Balance = _encryption.EncryptDecimal(newBalance) });
+        await _context.Connection.ExecuteAsync(sql, new { Id = id, Balance = newBalance });
     }
 
     private Account MapToAccount(dynamic row)
     {
-        var balance = row.balance is string s
-            ? _encryption.DecryptDecimal(s)
-            : (decimal)row.balance;
         return new Account
         {
             Id = row.id,
             Name = row.name,
             Bank = row.bank,
             Type = row.type,
-            Balance = balance,
+            Balance = (decimal)row.balance,
             WalletId = row.wallet_id,
             CreatedAt = row.created_at
         };
