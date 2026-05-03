@@ -18,13 +18,13 @@ public class HomeRepository : IHomeRepository
 
     public async Task<Home?> GetByIdAsync(Guid id)
     {
-        const string sql = @"SELECT id, name, description, split_mode, created_at FROM homes WHERE id = @Id";
+        const string sql = @"SELECT id, name, description, splitmode, createdat FROM homes WHERE id = @Id";
         return await _context.Connection.QueryFirstOrDefaultAsync<Home>(sql, new { Id = id });
     }
 
     public async Task<Home?> GetByIdAndMemberAsync(Guid id, Guid userId)
     {
-        const string sql = @"SELECT h.id, h.name, h.description, h.split_mode, h.created_at
+        const string sql = @"SELECT h.id, h.name, h.description, h.splitmode, h.createdat
                              FROM homes h
                              INNER JOIN home_members hm ON h.id = hm.home_id
                              WHERE h.id = @Id AND hm.user_id = @UserId";
@@ -33,17 +33,17 @@ public class HomeRepository : IHomeRepository
 
     public async Task<IEnumerable<Home>> GetAllByUserAsync(Guid userId)
     {
-        const string sql = @"SELECT h.id, h.name, h.description, h.split_mode, h.created_at
+        const string sql = @"SELECT h.id, h.name, h.description, h.splitmode, h.createdat
                              FROM homes h
                              INNER JOIN home_members hm ON h.id = hm.home_id
                              WHERE hm.user_id = @UserId
-                             ORDER BY h.created_at DESC";
+                             ORDER BY h.createdat DESC";
         return await _context.Connection.QueryAsync<Home>(sql, new { UserId = userId });
     }
 
     public async Task<Home> CreateAsync(Home home)
     {
-        const string sql = @"INSERT INTO homes (id, name, description, split_mode, created_at)
+        const string sql = @"INSERT INTO homes (id, name, description, splitmode, createdat)
                              VALUES (@Id, @Name, @Description, @SplitMode, @CreatedAt)";
         await _context.Connection.ExecuteAsync(sql, new { home.Id, home.Name, home.Description, SplitMode = (int)home.SplitMode, home.CreatedAt });
         return home;
@@ -51,7 +51,7 @@ public class HomeRepository : IHomeRepository
 
     public async Task<Home> UpdateAsync(Home home)
     {
-        const string sql = @"UPDATE homes SET name = @Name, description = @Description, split_mode = @SplitMode WHERE id = @Id";
+        const string sql = @"UPDATE homes SET name = @Name, description = @Description, splitmode = @SplitMode WHERE id = @Id";
         await _context.Connection.ExecuteAsync(sql, new { home.Id, home.Name, home.Description, SplitMode = (int)home.SplitMode });
         return home;
     }
@@ -219,9 +219,9 @@ public class HomeRepository : IHomeRepository
 
     public async Task<IEnumerable<Entry>> GetCreditsByWalletsAndMonthAsync(IEnumerable<Guid> walletIds, int month, int year)
     {
-        const string sql = @"SELECT id, title, value, type, description, category, date, wallet_id
+        const string sql = @"SELECT id, title, value, type, description, category, date, walletid
                              FROM entries
-                             WHERE wallet_id IN @WalletIds AND type = 0
+                             WHERE walletid IN @WalletIds AND type = 0
                              AND EXTRACT(MONTH FROM date) = @Month AND EXTRACT(YEAR FROM date) = @Year";
         return await _context.Connection.QueryAsync<Entry>(sql, new { WalletIds = walletIds, Month = month, Year = year });
     }
@@ -290,7 +290,7 @@ public class HomeRepository : IHomeRepository
 
     private async Task<Dictionary<Guid, Guid>> GetWalletUsersAsync(IEnumerable<Guid> walletIds)
     {
-        const string sql = @"SELECT id, user_id FROM wallets WHERE id IN @WalletIds";
+        const string sql = @"SELECT id, userid FROM wallets WHERE id IN @WalletIds";
         var wallets = await _context.Connection.QueryAsync<(Guid Id, Guid UserId)>(sql, new { WalletIds = walletIds });
         return wallets.ToDictionary(w => w.Id, w => w.UserId);
     }
@@ -305,10 +305,10 @@ public class HomeRepository : IHomeRepository
 
     private async Task<Dictionary<Guid, decimal>> GetMemberSalariesAsync(IEnumerable<Guid> walletIds)
     {
-        const string sql = @"SELECT wallet_id, SUM(amount) as total_amount
+        const string sql = @"SELECT walletid, SUM(amount) as total_amount
                              FROM salaries
-                             WHERE wallet_id IN @WalletIds AND active = true
-                             GROUP BY wallet_id";
+                             WHERE walletid IN @WalletIds AND active = true
+                             GROUP BY walletid";
         var salaries = await _context.Connection.QueryAsync<(Guid WalletId, decimal TotalAmount)>(sql, new { WalletIds = walletIds });
         return salaries.ToDictionary(s => s.WalletId, s => s.TotalAmount);
     }

@@ -20,7 +20,7 @@ public class AccountRepository : IAccountRepository
 
     public async Task<Account?> GetByIdAsync(Guid id)
     {
-        const string sql = @"SELECT id, name, bank, type, balance, wallet_id, createdat
+        const string sql = @"SELECT id, name, bank, type, balance, wallet_id, created_at
                              FROM accounts WHERE id = @Id";
 
         var row = await _context.Connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { Id = id });
@@ -29,8 +29,8 @@ public class AccountRepository : IAccountRepository
 
     public async Task<IEnumerable<Account>> GetByWalletIdAsync(Guid walletId)
     {
-        const string sql = @"SELECT id, name, bank, type, balance, wallet_id, createdat
-                             FROM accounts WHERE wallet_id = @WalletId ORDER BY createdat DESC";
+        const string sql = @"SELECT id, name, bank, type, balance, wallet_id, created_at
+                             FROM accounts WHERE wallet_id = @WalletId ORDER BY created_at DESC";
 
         var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { WalletId = walletId });
         return rows.Select(r => MapToAccount(r)).Cast<Account>();
@@ -38,11 +38,11 @@ public class AccountRepository : IAccountRepository
 
     public async Task<IEnumerable<Account>> GetByUserIdAsync(Guid userId)
     {
-        const string sql = @"SELECT a.id, a.name, a.bank, a.type, a.balance, a.wallet_id, a.createdat
+        const string sql = @"SELECT a.id, a.name, a.bank, a.type, a.balance, a.wallet_id, a.created_at
                              FROM accounts a
                              INNER JOIN wallets w ON w.id = a.wallet_id
-                             WHERE w.user_id = @UserId
-                             ORDER BY a.createdat DESC";
+                             WHERE w.userid = @UserId
+                             ORDER BY a.created_at DESC";
 
         var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { UserId = userId });
         return rows.Select(r => MapToAccount(r)).Cast<Account>();
@@ -50,7 +50,7 @@ public class AccountRepository : IAccountRepository
 
     public async Task<Account> CreateAsync(Account account)
     {
-        const string sql = @"INSERT INTO accounts (id, name, bank, type, balance, wallet_id, createdat)
+        const string sql = @"INSERT INTO accounts (id, name, bank, type, balance, wallet_id, created_at)
                              VALUES (@Id, @Name, @Bank, @Type, @Balance, @WalletId, @CreatedAt)";
 
         await _context.Connection.ExecuteAsync(sql, new
@@ -109,7 +109,7 @@ public class AccountRepository : IAccountRepository
             Type = row.type,
             Balance = balance,
             WalletId = row.wallet_id,
-            CreatedAt = row.createdat
+            CreatedAt = row.created_at
         };
     }
 }

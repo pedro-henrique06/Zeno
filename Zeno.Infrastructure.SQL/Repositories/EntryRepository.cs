@@ -20,7 +20,7 @@ public class EntryRepository : IEntryRepository
 
     public async Task<Entry?> GetByIdAsync(Guid id)
     {
-        const string sql = @"SELECT id, title, value, type, description, category, date, wallet_id
+        const string sql = @"SELECT id, title, value, type, description, category, date, walletid
                              FROM entries WHERE id = @Id";
 
         var row = await _context.Connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { Id = id });
@@ -29,9 +29,9 @@ public class EntryRepository : IEntryRepository
 
     public async Task<IEnumerable<Entry>> GetByMonthAsync(int month, int year, Guid walletId)
     {
-        const string sql = @"SELECT id, title, value, type, description, category, date, wallet_id
+        const string sql = @"SELECT id, title, value, type, description, category, date, walletid
                              FROM entries
-                             WHERE EXTRACT(MONTH FROM date) = @Month AND EXTRACT(YEAR FROM date) = @Year AND wallet_id = @WalletId";
+                             WHERE EXTRACT(MONTH FROM date) = @Month AND EXTRACT(YEAR FROM date) = @Year AND walletid = @WalletId";
 
         var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { Month = month, Year = year, WalletId = walletId });
         return rows.Select(r => MapToEntry(r)).Cast<Entry>();
@@ -39,7 +39,7 @@ public class EntryRepository : IEntryRepository
 
     public async Task<Entry> CreateAsync(Entry entry)
     {
-        const string sql = @"INSERT INTO entries (id, title, value, type, description, category, date, wallet_id)
+        const string sql = @"INSERT INTO entries (id, title, value, type, description, category, date, walletid)
                              VALUES (@Id, @Title, @Value, @Type, @Description, @Category, @Date, @WalletId)";
 
         await _context.Connection.ExecuteAsync(sql, new
@@ -61,7 +61,7 @@ public class EntryRepository : IEntryRepository
     {
         const string sql = @"UPDATE entries
                              SET title = @Title, value = @Value, type = @Type,
-                                 description = @Description, category = @Category, date = @Date, wallet_id = @WalletId
+                                 description = @Description, category = @Category, date = @Date, walletid = @WalletId
                              WHERE id = @Id";
 
         await _context.Connection.ExecuteAsync(sql, new
@@ -99,7 +99,7 @@ public class EntryRepository : IEntryRepository
             Description = row.description,
             Category = (Category)(int)row.category,
             Date = row.date,
-            WalletId = row.wallet_id
+            WalletId = row.walletid
         };
     }
 }
