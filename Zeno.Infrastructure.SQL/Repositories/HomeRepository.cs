@@ -26,8 +26,8 @@ public class HomeRepository : IHomeRepository
     {
         const string sql = @"SELECT h.id, h.name, h.description, h.splitmode, h.createdat
                              FROM homes h
-                             INNER JOIN home_members hm ON h.id = hm.home_id
-                             WHERE h.id = @Id AND hm.user_id = @UserId";
+                             INNER JOIN homemembers hm ON h.id = hm.homeid
+                             WHERE h.id = @Id AND hm.userid = @UserId";
         return await _context.Connection.QueryFirstOrDefaultAsync<Home>(sql, new { Id = id, UserId = userId });
     }
 
@@ -35,8 +35,8 @@ public class HomeRepository : IHomeRepository
     {
         const string sql = @"SELECT h.id, h.name, h.description, h.splitmode, h.createdat
                              FROM homes h
-                             INNER JOIN home_members hm ON h.id = hm.home_id
-                             WHERE hm.user_id = @UserId
+                             INNER JOIN homemembers hm ON h.id = hm.homeid
+                             WHERE hm.userid = @UserId
                              ORDER BY h.createdat DESC";
         return await _context.Connection.QueryAsync<Home>(sql, new { UserId = userId });
     }
@@ -58,34 +58,34 @@ public class HomeRepository : IHomeRepository
 
     public async Task DeleteAsync(Guid id)
     {
-        const string sql = @"DELETE FROM home_expenses WHERE home_id = @Id;
-                             DELETE FROM home_wallets WHERE home_id = @Id;
-                             DELETE FROM home_members WHERE home_id = @Id;
+        const string sql = @"DELETE FROM home_expenses WHERE homeid = @Id;
+                             DELETE FROM home_wallets WHERE homeid = @Id;
+                             DELETE FROM homemembers WHERE homeid = @Id;
                              DELETE FROM homes WHERE id = @Id";
         await _context.Connection.ExecuteAsync(sql, new { Id = id });
     }
 
     public async Task AddWalletAsync(Guid homeId, Guid walletId)
     {
-        const string sql = @"INSERT INTO home_wallets (home_id, wallet_id) VALUES (@HomeId, @WalletId) ON CONFLICT DO NOTHING";
+        const string sql = @"INSERT INTO home_wallets (homeid, walletid) VALUES (@HomeId, @WalletId) ON CONFLICT DO NOTHING";
         await _context.Connection.ExecuteAsync(sql, new { HomeId = homeId, WalletId = walletId });
     }
 
     public async Task RemoveWalletAsync(Guid homeId, Guid walletId)
     {
-        const string sql = @"DELETE FROM home_wallets WHERE home_id = @HomeId AND wallet_id = @WalletId";
+        const string sql = @"DELETE FROM home_wallets WHERE homeid = @HomeId AND walletid = @WalletId";
         await _context.Connection.ExecuteAsync(sql, new { HomeId = homeId, WalletId = walletId });
     }
 
     public async Task<IEnumerable<HomeWallet>> GetWalletsByHomeAsync(Guid homeId)
     {
-        const string sql = @"SELECT home_id, wallet_id FROM home_wallets WHERE home_id = @HomeId";
+        const string sql = @"SELECT homeid, walletid FROM home_wallets WHERE homeid = @HomeId";
         return await _context.Connection.QueryAsync<HomeWallet>(sql, new { HomeId = homeId });
     }
 
     public async Task<HomeExpense> CreateExpenseAsync(HomeExpense expense)
     {
-        const string sql = @"INSERT INTO home_expenses (id, home_id, title, value, category, month, year, created_at)
+        const string sql = @"INSERT INTO home_expenses (id, homeid, title, value, category, month, year, created_at)
                              VALUES (@Id, @HomeId, @Title, @Value, @Category, @Month, @Year, @CreatedAt)";
         await _context.Connection.ExecuteAsync(sql, new
         {
@@ -109,8 +109,8 @@ public class HomeRepository : IHomeRepository
 
     public async Task<IEnumerable<HomeExpense>> GetExpensesByMonthAsync(Guid homeId, int month, int year)
     {
-        const string sql = @"SELECT id, home_id, title, value, category, month, year, created_at
-                             FROM home_expenses WHERE home_id = @HomeId AND month = @Month AND year = @Year";
+        const string sql = @"SELECT id, homeid, title, value, category, month, year, created_at
+                             FROM home_expenses WHERE homeid = @HomeId AND month = @Month AND year = @Year";
         return await _context.Connection.QueryAsync<HomeExpense>(sql, new { HomeId = homeId, Month = month, Year = year });
     }
 
@@ -228,34 +228,34 @@ public class HomeRepository : IHomeRepository
 
     public async Task AddMemberAsync(Guid homeId, Guid userId, int role)
     {
-        const string sql = @"INSERT INTO home_members (home_id, user_id, role, joined_at) VALUES (@HomeId, @UserId, @Role, @JoinedAt) ON CONFLICT DO NOTHING";
+        const string sql = @"INSERT INTO homemembers (homeid, userid, role, joinedat) VALUES (@HomeId, @UserId, @Role, @JoinedAt) ON CONFLICT DO NOTHING";
         await _context.Connection.ExecuteAsync(sql, new { HomeId = homeId, UserId = userId, Role = role, JoinedAt = DateTime.UtcNow });
     }
 
     public async Task RemoveMemberAsync(Guid homeId, Guid userId)
     {
-        const string sql = @"DELETE FROM home_members WHERE home_id = @HomeId AND user_id = @UserId";
+        const string sql = @"DELETE FROM homemembers WHERE homeid = @HomeId AND userid = @UserId";
         await _context.Connection.ExecuteAsync(sql, new { HomeId = homeId, UserId = userId });
     }
 
     public async Task<bool> IsMemberAsync(Guid homeId, Guid userId)
     {
-        const string sql = @"SELECT COUNT(1) FROM home_members WHERE home_id = @HomeId AND user_id = @UserId";
+        const string sql = @"SELECT COUNT(1) FROM homemembers WHERE homeid = @HomeId AND userid = @UserId";
         return await _context.Connection.ExecuteScalarAsync<int>(sql, new { HomeId = homeId, UserId = userId }) > 0;
     }
 
     public async Task<bool> IsAdminAsync(Guid homeId, Guid userId)
     {
-        const string sql = @"SELECT COUNT(1) FROM home_members WHERE home_id = @HomeId AND user_id = @UserId AND role = 0";
+        const string sql = @"SELECT COUNT(1) FROM homemembers WHERE homeid = @HomeId AND userid = @UserId AND role = 0";
         return await _context.Connection.ExecuteScalarAsync<int>(sql, new { HomeId = homeId, UserId = userId }) > 0;
     }
 
     public async Task<IEnumerable<HomeMember>> GetMembersByHomeAsync(Guid homeId)
     {
-        const string sql = @"SELECT hm.home_id, hm.user_id, u.name as user_name, u.email as user_email, hm.role, hm.joined_at
-                             FROM home_members hm
-                             INNER JOIN users u ON hm.user_id = u.id
-                             WHERE hm.home_id = @HomeId";
+        const string sql = @"SELECT hm.homeid, hm.userid, u.name as user_name, u.email as user_email, hm.role, hm.joinedat
+                             FROM homemembers hm
+                             INNER JOIN users u ON hm.userid = u.id
+                             WHERE hm.homeid = @HomeId";
         return await _context.Connection.QueryAsync<HomeMember>(sql, new { HomeId = homeId });
     }
 
