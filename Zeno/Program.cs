@@ -63,6 +63,7 @@ builder.Services.AddScoped<IDebtService, DebtService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<ICategoryRuleService, CategoryRuleService>();
 builder.Services.AddScoped<ISalaryService, SalaryService>();
+builder.Services.AddScoped<IProjectionService, ProjectionService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<ITokenBlacklistService, TokenBlacklistService>();
 builder.Services.AddMemoryCache();
