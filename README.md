@@ -96,6 +96,30 @@ Ao criar: o saldo da carteira e atualizado (+credito / -debito).
 Ao atualizar: o efeito do lancamento antigo e revertido e o novo e aplicado.
 Ao remover: o efeito do lancamento e revertido.
 
+### 4.1. Projecao financeira
+
+Simula o impacto de um gasto extra hipotetico no saldo da carteira nos proximos meses, usando a media de receitas e despesas dos ultimos 3 meses como base.
+
+```
+POST   /api/projection/simulate    -> Simula projecao de saldo
+```
+
+Corpo da requisicao:
+
+```json
+{
+  "walletId": "guid-da-carteira",
+  "extraExpenseAmount": 300.00,
+  "isRecurring": true,
+  "monthsToProject": 6
+}
+```
+
+- `isRecurring = true`: o gasto extra se repete todo mes na projecao.
+- `isRecurring = false`: o gasto extra e aplicado uma unica vez, no primeiro mes projetado.
+
+A resposta traz o saldo projetado mes a mes, alerta se o saldo ficar negativo e se as despesas projetadas ultrapassam o limite de 50% da regra 50/30/20.
+
 ### 5. Criar uma casa e convidar membros
 
 Uma casa (Home) e um espaco compartilhado onde multiplos usuarios gerenciam financas juntos. Quem cria a casa e automaticamente o **Admin**.
