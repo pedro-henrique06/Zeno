@@ -134,4 +134,20 @@ public class AuthController : AppControllerBase
         var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
         return HandleAsync(() => _authService.LogoutAsync(token), Ok(new { message = "Logout realizado com sucesso." }));
     }
+
+    [AllowAnonymous]
+    [HttpPost("refresh-token")]
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.RefreshToken))
+            return BadRequest(new { error = "Refresh token é obrigatório." });
+
+        var result = await _authService.RefreshTokenAsync(request.RefreshToken);
+        return Ok(result);
+    }
+}
+
+public class RefreshTokenRequest
+{
+    public string RefreshToken { get; set; } = string.Empty;
 }

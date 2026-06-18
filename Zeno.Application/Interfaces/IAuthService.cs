@@ -9,6 +9,7 @@ public interface IAuthService
     Task<AuthResponse> RegisterAsync(RegisterRequest request);
     Task<AuthResponse> HandleOAuthCallbackAsync(string provider, string providerId, string email, string name);
     Task LogoutAsync(string token);
+    Task<AuthResponse> RefreshTokenAsync(string refreshToken);
     string GetGoogleClientId();
     string GetGoogleClientSecret();
 }

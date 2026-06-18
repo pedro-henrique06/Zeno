@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using BCrypt.Net;
 using FluentValidation;
@@ -9,7 +10,7 @@ using Zeno.Application.Exceptions;
 using Zeno.Application.Interfaces;
 using Zeno.Application.Requests;
 using Zeno.Application.Responses;
-using Zeno.Application.Validators;
+using Zeno.Domain.Auth;
 using Zeno.Domain.Interfaces;
 using Zeno.Domain.User;
 
@@ -17,26 +18,34 @@ namespace Zeno.Application.Services;
 
 public class AuthService : IAuthService
 {
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IValidator<LoginRequest> _loginValidator;
+    private readonly IValidator<RegisterRequest> _registerValidator;
     private readonly IUserRepository _userRepository;
+    private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IConfiguration _configuration;
     private readonly ITokenBlacklistService _tokenBlacklistService;
 
     public AuthService(
-        IServiceProvider serviceProvider,
+        IValidator<LoginRequest> loginValidator,
+        IValidator<RegisterRequest> registerValidator,
         IUserRepository userRepository,
+        IRefreshTokenRepository refreshTokenRepository,
         IConfiguration configuration,
         ITokenBlacklistService tokenBlacklistService)
     {
-        _serviceProvider = serviceProvider;
+        _loginValidator = loginValidator;
+        _registerValidator = registerValidator;
         _userRepository = userRepository;
+        _refreshTokenRepository = refreshTokenRepository;
         _configuration = configuration;
         _tokenBlacklistService = tokenBlacklistService;
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
     {
-        await ValidateAsync<LoginRequestValidator, LoginRequest>(request);
+        var validation = await _loginValidator.ValidateAsync(request);
+        if (!validation.IsValid)
+            throw new AppValidationException(validation);
 
         var user = await _userRepository.GetByEmailAsync(request.Email)
             ?? throw new AppValidationException(new FluentValidation.Results.ValidationResult(
@@ -59,6 +68,8 @@ public class AuthService : IAuthService
                     new("Password", "Senha inválida.")
                 }));
 
+        var (token, refreshToken) = await GenerateTokensAsync(user);
+
         return new AuthResponse
         {
             UserId = user.Id,
@@ -68,13 +79,16 @@ public class AuthService : IAuthService
             Document = user.Document,
             BirthDate = user.BirthDate,
             OAuthProvider = user.Provider.ToString(),
-            Token = GenerateJwtToken(user)
+            Token = token,
+            RefreshToken = refreshToken
         };
     }
 
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
     {
-        await ValidateAsync<RegisterRequestValidator, RegisterRequest>(request);
+        var validation = await _registerValidator.ValidateAsync(request);
+        if (!validation.IsValid)
+            throw new AppValidationException(validation);
 
         if (await _userRepository.EmailExistsAsync(request.Email))
             throw new AppValidationException(new FluentValidation.Results.ValidationResult(
@@ -98,6 +112,8 @@ public class AuthService : IAuthService
 
         await _userRepository.CreateAsync(user);
 
+        var (token, refreshToken) = await GenerateTokensAsync(user);
+
         return new AuthResponse
         {
             UserId = user.Id,
@@ -107,7 +123,8 @@ public class AuthService : IAuthService
             Document = user.Document,
             BirthDate = user.BirthDate,
             OAuthProvider = user.Provider.ToString(),
-            Token = GenerateJwtToken(user)
+            Token = token,
+            RefreshToken = refreshToken
         };
     }
 
@@ -145,6 +162,8 @@ public class AuthService : IAuthService
                 }));
         }
 
+        var (token, refreshToken) = await GenerateTokensAsync(user);
+
         return new AuthResponse
         {
             UserId = user.Id,
@@ -154,7 +173,8 @@ public class AuthService : IAuthService
             Document = user.Document,
             BirthDate = user.BirthDate,
             OAuthProvider = user.Provider.ToString(),
-            Token = GenerateJwtToken(user)
+            Token = token,
+            RefreshToken = refreshToken
         };
     }
 
@@ -168,6 +188,49 @@ public class AuthService : IAuthService
         var expiresIn = jwt.ValidTo - DateTime.UtcNow;
         if (expiresIn > TimeSpan.Zero)
             _tokenBlacklistService.Revoke(jti, expiresIn);
+    }
+
+    public async Task<AuthResponse> RefreshTokenAsync(string refreshToken)
+    {
+        var storedToken = await _refreshTokenRepository.GetByTokenAsync(refreshToken);
+        if (storedToken is null || !storedToken.IsActive)
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new("RefreshToken", "Refresh token inválido ou expirado.")
+                }));
+
+        var user = await _userRepository.GetByIdAsync(storedToken.UserId);
+        if (user is null)
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new("RefreshToken", "Usuário não encontrado.")
+                }));
+
+        await _refreshTokenRepository.RevokeAsync(user.Id, refreshToken);
+
+        var (token, newRefreshToken) = await GenerateTokensAsync(user);
+
+        return new AuthResponse
+        {
+            UserId = user.Id,
+            Name = user.Name,
+            Email = user.Email,
+            Phone = user.Phone,
+            Document = user.Document,
+            BirthDate = user.BirthDate,
+            OAuthProvider = user.Provider.ToString(),
+            Token = token,
+            RefreshToken = newRefreshToken
+        };
+    }
+
+    private async Task<(string Token, string RefreshToken)> GenerateTokensAsync(User user)
+    {
+        var token = GenerateJwtToken(user);
+        var refreshToken = await CreateRefreshTokenAsync(user.Id);
+        return (token, refreshToken);
     }
 
     private string GenerateJwtToken(User user)
@@ -196,15 +259,26 @@ public class AuthService : IAuthService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
+    private async Task<string> CreateRefreshTokenAsync(Guid userId)
+    {
+        var randomBytes = new byte[64];
+        using var rng = RandomNumberGenerator.Create();
+        rng.GetBytes(randomBytes);
+        var refreshToken = Convert.ToBase64String(randomBytes);
+
+        var entity = new RefreshToken
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Token = refreshToken,
+            ExpiresAt = DateTime.UtcNow.AddDays(30),
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _refreshTokenRepository.CreateAsync(entity);
+        return refreshToken;
+    }
+
     public string GetGoogleClientId() => _configuration["OAuth:Google:ClientId"] ?? "";
     public string GetGoogleClientSecret() => _configuration["OAuth:Google:ClientSecret"] ?? "";
-
-    private async Task ValidateAsync<TValidator, T>(T instance) where TValidator : IValidator<T>
-    {
-        var validator = (TValidator)_serviceProvider.GetService(typeof(TValidator))!;
-        var result = await validator.ValidateAsync(instance!);
-
-        if (!result.IsValid)
-            throw new AppValidationException(result);
-    }
 }

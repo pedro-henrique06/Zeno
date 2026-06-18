@@ -1,3 +1,4 @@
+using System.Data;
 using Dapper;
 using Zeno.Application.Interfaces;
 using Zeno.Domain.Interfaces;
@@ -51,6 +52,25 @@ public class WalletRepository : IWalletRepository
         return rows.Select(r => MapToWallet(r)).Cast<Wallet>();
     }
 
+    public async Task<decimal> GetTotalBalanceByUserAsync(Guid userId)
+    {
+        var sql = @"SELECT COALESCE(SUM(balance), 0) FROM wallets WHERE userid = @UserId";
+        return await _context.Connection.ExecuteScalarAsync<decimal>(sql, new { UserId = userId });
+    }
+
+    public async Task<decimal> GetTotalByUserAndMonthAsync(Guid userId, int month, int year)
+    {
+        var sql = @"SELECT COALESCE(SUM(e.value), 0)
+                    FROM entries e
+                    INNER JOIN wallets w ON e.walletid = w.id
+                    WHERE w.userid = @UserId
+                      AND EXTRACT(MONTH FROM e.date) = @Month
+                      AND EXTRACT(YEAR FROM e.date) = @Year
+                      AND e.type = 0";
+
+        return await _context.Connection.ExecuteScalarAsync<decimal>(sql, new { UserId = userId, Month = month, Year = year });
+    }
+
     public async Task<Wallet> CreateAsync(Wallet wallet)
     {
         const string sql = @"INSERT INTO wallets (id, name, description, balance, userid, currency, createdat)
@@ -93,10 +113,11 @@ public class WalletRepository : IWalletRepository
         await _context.Connection.ExecuteAsync(sql, new { Id = id });
     }
 
-    public async Task AddBalanceAsync(Guid id, decimal amount)
+    public async Task AddBalanceAsync(Guid id, decimal amount, object? transaction = null)
     {
         const string sql = @"UPDATE wallets SET balance = balance + @Amount WHERE id = @Id";
-        await _context.Connection.ExecuteAsync(sql, new { Id = id, Amount = amount });
+        var tx = transaction as IDbTransaction;
+        await _context.Connection.ExecuteAsync(sql, new { Id = id, Amount = amount }, tx);
     }
 
     private Wallet MapToWallet(dynamic row)

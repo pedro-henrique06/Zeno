@@ -13,12 +13,19 @@ public static class ServiceConfigurator
     {
         services.AddSingleton<IEncryptionService>(_ => new AesEncryptionService(encryptionKey));
         services.AddScoped<ZenoDbContext>(_ => new ZenoDbContext(connectionString));
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IEntryRepository, EntryRepository>();
         services.AddScoped<IWalletRepository, WalletRepository>();
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<IHomeRepository, HomeRepository>();
         services.AddScoped<ISalaryRepository, SalaryRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IRecurringExpenseRepository, RecurringExpenseRepository>();
+        services.AddScoped<IFinancialGoalRepository, FinancialGoalRepository>();
+        services.AddScoped<IDebtRepository, DebtRepository>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<ICategoryRuleRepository, CategoryRuleRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
         return services;
     }

@@ -47,17 +47,28 @@ builder.Services.AddSwaggerGen(c =>
 });
 builder.Services.AddValidatorsFromAssemblyContaining<Zeno.Application.Validators.EntryValidator>();
 var connStr = builder.Configuration["Database:ConnectionString"]!;
-Console.WriteLine($"[DEBUG] ConnectionString: {connStr}");
 builder.Services.AddInfrastructureSQL(connStr, builder.Configuration["Encryption:Key"]!);
 builder.Services.AddScoped<IEntryService, EntryService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IHomeService, HomeService>();
+builder.Services.AddScoped<IHomeMemberService, HomeMemberService>();
+builder.Services.AddScoped<IHomeExpenseService, HomeExpenseService>();
+builder.Services.AddScoped<IHomeSplitService, HomeSplitService>();
+builder.Services.AddScoped<IHomeBudgetService, HomeBudgetService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IRecurringExpenseService, RecurringExpenseService>();
+builder.Services.AddScoped<IFinancialGoalService, FinancialGoalService>();
+builder.Services.AddScoped<IDebtService, DebtService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<ICategoryRuleService, CategoryRuleService>();
 builder.Services.AddScoped<ISalaryService, SalaryService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<ITokenBlacklistService, TokenBlacklistService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddHostedService<RecurringSalaryHostedService>();
+builder.Services.AddHealthChecks()
+    .AddNpgSql(builder.Configuration["Database:ConnectionString"]!, name: "postgresql", tags: new[] { "db", "postgres" });
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
@@ -134,13 +145,11 @@ app.Use(async (context, next) =>
 {
     try
     {
-        Console.WriteLine($"[Request] {context.Request.Method} {context.Request.Path}");
         await next();
     }
     catch (Exception ex)
     {
         Console.WriteLine($"[Unhandled Exception] {ex.Message}");
-        Console.WriteLine($"[StackTrace] {ex.StackTrace}");
         throw;
     }
 });
@@ -149,6 +158,8 @@ app.UseExceptionHandler("/error");
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapHealthChecks("/health");
 
 app.MapControllers();
 

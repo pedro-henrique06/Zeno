@@ -1,3 +1,4 @@
+﻿using Zeno.Application.Requests.Homes;
 using Zeno.Application.Responses;
 using Zeno.Domain.Home;
 
@@ -5,20 +6,36 @@ namespace Zeno.Application.Interfaces;
 
 public interface IHomeService
 {
-    Task<Home> CreateHome(Guid userId, Home home);
-    Task<Home> UpdateHome(Guid userId, Home home);
+    Task<Home> CreateHome(Guid userId, CreateHomeRequest request);
+    Task<Home> UpdateHome(Guid userId, UpdateHomeRequest request);
     Task<Home> DeleteHome(Guid userId, Guid id);
     Task<Home?> GetHomeById(Guid userId, Guid id);
     Task<IEnumerable<Home>> GetAllHomes(Guid userId);
-    Task AddWalletToHome(Guid userId, Guid homeId, Guid walletId);
-    Task RemoveWalletFromHome(Guid userId, Guid homeId, Guid walletId);
-    Task<IEnumerable<HomeWallet>> GetWallets(Guid userId, Guid homeId);
-    Task<HomeExpense> CreateExpense(Guid userId, HomeExpense expense);
-    Task DeleteExpense(Guid userId, Guid expenseId);
-    Task<IEnumerable<HomeExpense>> GetExpensesByMonth(Guid userId, Guid homeId, int month, int year);
-    Task<IEnumerable<ExpenseSplitResult>> CalculateExpenseSplit(Guid userId, Guid homeId, int month, int year);
-    Task InviteMember(Guid adminUserId, Guid homeId, Guid invitedUserId);
-    Task RemoveMember(Guid adminUserId, Guid homeId, Guid memberUserId);
+}
+
+public interface IHomeMemberService
+{
     Task<IEnumerable<HomeMember>> GetMembers(Guid userId, Guid homeId);
+    Task InviteMember(Guid adminUserId, Guid homeId, AddHomeMemberRequest request);
+    Task RemoveMember(Guid adminUserId, Guid homeId, Guid memberUserId);
+}
+
+public interface IHomeExpenseService
+{
+    Task<HomeExpense> CreateExpense(Guid userId, CreateHomeExpenseRequest request);
+    Task DeleteExpense(Guid userId, Guid homeId, Guid expenseId);
+    Task<IEnumerable<HomeExpense>> GetExpensesByMonth(Guid userId, Guid homeId, int month, int year);
+}
+
+public interface IHomeSplitService
+{
+    Task<IEnumerable<ExpenseSplitResult>> CalculateExpenseSplit(Guid userId, Guid homeId, int month, int year);
+    Task<IEnumerable<HomeWallet>> GetWallets(Guid userId, Guid homeId);
+    Task AddWalletToHome(Guid userId, Guid homeId, Guid walletId);
+    Task RemoveWalletFromHome(Guid adminUserId, Guid homeId, Guid walletId);
+}
+
+public interface IHomeBudgetService
+{
     Task<BudgetAlertResponse> GetBudgetAlertAsync(Guid userId, Guid homeId, int month, int year);
 }

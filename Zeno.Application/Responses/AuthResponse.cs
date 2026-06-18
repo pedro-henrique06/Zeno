@@ -10,4 +10,5 @@ public class AuthResponse
     public DateTime? BirthDate { get; set; }
     public string OAuthProvider { get; set; } = "None";
     public string Token { get; set; } = string.Empty;
+    public string? RefreshToken { get; set; }
 }

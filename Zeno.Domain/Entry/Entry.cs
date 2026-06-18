@@ -19,6 +19,8 @@ namespace Zeno.Domain.Entry
 
         public Category Category { get; set; }
 
+        public Guid? CategoryId { get; set; }
+
         public DateTime Date { get; set; } = DateTime.UtcNow;
 
         public Guid? WalletId { get; set; }

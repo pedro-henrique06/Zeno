@@ -102,3 +102,77 @@ CREATE TABLE IF NOT EXISTS HomeMembers (
     CONSTRAINT FK_HomeMembers_Homes FOREIGN KEY (HomeId) REFERENCES Homes(Id),
     CONSTRAINT FK_HomeMembers_Users FOREIGN KEY (UserId) REFERENCES Users(Id)
 );
+
+CREATE TABLE IF NOT EXISTS RecurringExpenses (
+    Id UUID PRIMARY KEY,
+    UserId UUID NOT NULL,
+    WalletId UUID NOT NULL,
+    Title VARCHAR(100) NOT NULL,
+    Value NUMERIC(18,2) NOT NULL,
+    DayOfMonth INT NOT NULL,
+    IsActive BOOLEAN NOT NULL DEFAULT TRUE,
+    CreatedAt TIMESTAMP NOT NULL,
+    LastProcessedAt TIMESTAMP NULL,
+    CONSTRAINT FK_RecurringExpenses_Users FOREIGN KEY (UserId) REFERENCES Users(Id),
+    CONSTRAINT FK_RecurringExpenses_Wallets FOREIGN KEY (WalletId) REFERENCES Wallets(Id)
+);
+
+CREATE TABLE IF NOT EXISTS FinancialGoals (
+    Id UUID PRIMARY KEY,
+    UserId UUID NOT NULL,
+    Name VARCHAR(100) NOT NULL,
+    TargetAmount NUMERIC(18,2) NOT NULL,
+    CurrentAmount NUMERIC(18,2) NOT NULL DEFAULT 0,
+    TargetDate DATE NOT NULL,
+    CreatedAt TIMESTAMP NOT NULL,
+    CONSTRAINT FK_FinancialGoals_Users FOREIGN KEY (UserId) REFERENCES Users(Id)
+);
+
+CREATE TABLE IF NOT EXISTS Debts (
+    Id UUID PRIMARY KEY,
+    UserId UUID NOT NULL,
+    Name VARCHAR(100) NOT NULL,
+    TotalAmount NUMERIC(18,2) NOT NULL,
+    PaidAmount NUMERIC(18,2) NOT NULL DEFAULT 0,
+    MonthlyPayment NUMERIC(18,2) NOT NULL,
+    CreatedAt TIMESTAMP NOT NULL,
+    CONSTRAINT FK_Debts_Users FOREIGN KEY (UserId) REFERENCES Users(Id)
+);
+
+CREATE TABLE IF NOT EXISTS Categories (
+    Id UUID PRIMARY KEY,
+    UserId UUID NULL,
+    Name VARCHAR(100) NOT NULL,
+    Type INT NOT NULL,
+    CreatedAt TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS CategoryRules (
+    Id UUID PRIMARY KEY,
+    UserId UUID NOT NULL,
+    Keyword VARCHAR(100) NOT NULL,
+    CategoryId UUID NOT NULL,
+    CreatedAt TIMESTAMP NOT NULL,
+    CONSTRAINT FK_CategoryRules_Users FOREIGN KEY (UserId) REFERENCES Users(Id),
+    CONSTRAINT FK_CategoryRules_Categories FOREIGN KEY (CategoryId) REFERENCES Categories(Id)
+);
+
+CREATE INDEX IF NOT EXISTS IX_RecurringExpenses_User ON RecurringExpenses(UserId);
+CREATE INDEX IF NOT EXISTS IX_RecurringExpenses_Day ON RecurringExpenses(DayOfMonth, IsActive);
+CREATE INDEX IF NOT EXISTS IX_FinancialGoals_User ON FinancialGoals(UserId);
+CREATE INDEX IF NOT EXISTS IX_Debts_User ON Debts(UserId);
+CREATE INDEX IF NOT EXISTS IX_Categories_UserId ON Categories(UserId);
+CREATE INDEX IF NOT EXISTS IX_CategoryRules_User ON CategoryRules(UserId);
+
+CREATE TABLE IF NOT EXISTS RefreshTokens (
+    Id UUID PRIMARY KEY,
+    UserId UUID NOT NULL,
+    Token VARCHAR(500) NOT NULL,
+    ExpiresAt TIMESTAMP NOT NULL,
+    RevokedAt TIMESTAMP NULL,
+    CreatedAt TIMESTAMP NOT NULL,
+    CONSTRAINT FK_RefreshTokens_Users FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS IX_RefreshTokens_User ON RefreshTokens(UserId);
+CREATE INDEX IF NOT EXISTS IX_RefreshTokens_Token ON RefreshTokens(Token);

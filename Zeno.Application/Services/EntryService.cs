@@ -2,6 +2,8 @@ using FluentValidation;
 using Zeno.Application.Exceptions;
 using Zeno.Application.Interfaces;
 using Zeno.Application.Requests;
+using Zeno.Application.Requests.Entries;
+using Zeno.Application.Responses.Common;
 using Zeno.Application.Validators;
 using Zeno.Domain.Entry;
 using Zeno.Domain.Enum;
@@ -11,22 +13,42 @@ namespace Zeno.Application.Services;
 
 public class EntryService : IEntryService
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly IEntryRepository _repository;
+    private readonly IValidator<CreateEntryRequest> _createValidator;
+    private readonly IValidator<UpdateEntryRequest> _updateValidator;
+    private readonly IValidator<DeleteEntryRequest> _deleteValidator;
+    private readonly IValidator<GetEntriesByMonthQuery> _getEntriesValidator;
+    private readonly IEntryRepository _entryRepository;
     private readonly IWalletRepository _walletRepository;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ICategoryRuleService _categoryRuleService;
 
-    public EntryService(IServiceProvider serviceProvider, IEntryRepository repository, IWalletRepository walletRepository)
+    public EntryService(
+        IValidator<CreateEntryRequest> createValidator,
+        IValidator<UpdateEntryRequest> updateValidator,
+        IValidator<DeleteEntryRequest> deleteValidator,
+        IValidator<GetEntriesByMonthQuery> getEntriesValidator,
+        IEntryRepository entryRepository,
+        IWalletRepository walletRepository,
+        IUnitOfWork unitOfWork,
+        ICategoryRuleService categoryRuleService)
     {
-        _serviceProvider = serviceProvider;
-        _repository = repository;
+        _createValidator = createValidator;
+        _updateValidator = updateValidator;
+        _deleteValidator = deleteValidator;
+        _getEntriesValidator = getEntriesValidator;
+        _entryRepository = entryRepository;
         _walletRepository = walletRepository;
+        _unitOfWork = unitOfWork;
+        _categoryRuleService = categoryRuleService;
     }
 
-    public async Task<Entry> CreateEntry(Guid userId, Entry entry)
+    public async Task<PagedResponse<Entry>> GetEntriesByMonth(Guid userId, GetEntriesByMonthQuery query)
     {
-        await ValidateAsync<EntryValidator, Entry>(entry);
+        var validation = await _getEntriesValidator.ValidateAsync(query);
+        if (!validation.IsValid)
+            throw new AppValidationException(validation);
 
-        var wallet = await _walletRepository.GetByIdAndUserAsync(entry.WalletId!.Value, userId);
+        var wallet = await _walletRepository.GetByIdAndUserAsync(query.WalletId!.Value, userId);
         if (wallet is null)
             throw new AppValidationException(new FluentValidation.Results.ValidationResult(
                 new List<FluentValidation.Results.ValidationFailure>
@@ -34,56 +56,143 @@ public class EntryService : IEntryService
                     new("WalletId", "Carteira não encontrada.")
                 }));
 
-        entry.Id = Guid.NewGuid();
+        var pageSize = Math.Min(query.PageSize, 100);
+        var (items, totalCount) = await _entryRepository.GetByMonthPagedAsync(
+            query.Month!.Value,
+            query.Year!.Value,
+            query.WalletId!.Value,
+            query.Type,
+            query.Category,
+            query.Page,
+            pageSize);
 
-        var created = await _repository.CreateAsync(entry);
-
-        await UpdateWalletBalance(entry.WalletId!.Value, entry.Type, entry.Value);
-
-        return created;
+        return new PagedResponse<Entry>
+        {
+            Items = items.ToList(),
+            Page = query.Page,
+            PageSize = pageSize,
+            TotalItems = totalCount,
+            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+        };
     }
 
-    public async Task<Entry> UpdateEntry(Guid userId, Entry entry)
+    public async Task<Entry> CreateEntry(Guid userId, CreateEntryRequest request)
     {
-        await ValidateAsync<UpdateEntryValidator, Entry>(entry);
+        var validation = await _createValidator.ValidateAsync(request);
+        if (!validation.IsValid)
+            throw new AppValidationException(validation);
 
-        var oldEntry = await _repository.GetByIdAsync(entry.Id!.Value);
-        if (oldEntry is null)
-            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
-                new List<FluentValidation.Results.ValidationFailure>
-                {
-                    new(nameof(entry.Id), "Lançamento não encontrado.")
-                }));
-
-        var oldWallet = await _walletRepository.GetByIdAndUserAsync(oldEntry.WalletId!.Value, userId);
-        if (oldWallet is null)
+        var wallet = await _walletRepository.GetByIdAndUserAsync(request.WalletId, userId);
+        if (wallet is null)
             throw new AppValidationException(new FluentValidation.Results.ValidationResult(
                 new List<FluentValidation.Results.ValidationFailure>
                 {
                     new("WalletId", "Carteira não encontrada.")
                 }));
 
-        await ReverseWalletBalance(oldEntry.WalletId!.Value, oldEntry.Type, oldEntry.Value);
+        Guid? categoryId = request.CategoryId;
+        if (!categoryId.HasValue && request.Category == Category.None && !string.IsNullOrWhiteSpace(request.Description))
+        {
+            var matchedCategory = await _categoryRuleService.ApplyRuleAsync(userId, request.Description);
+            if (matchedCategory is not null)
+                categoryId = matchedCategory.Id;
+        }
 
-        await _repository.UpdateAsync(entry);
+        var entry = new Entry
+        {
+            Id = Guid.NewGuid(),
+            Title = request.Title,
+            Value = request.Value,
+            Type = request.Type,
+            Description = request.Description ?? string.Empty,
+            Category = request.Category,
+            CategoryId = categoryId,
+            Date = request.Date,
+            WalletId = request.WalletId
+        };
 
-        await UpdateWalletBalance(entry.WalletId!.Value, entry.Type, entry.Value);
+        await _unitOfWork.BeginAsync();
+
+        try
+        {
+            await _entryRepository.CreateAsync(entry, _unitOfWork.Transaction);
+            await _walletRepository.AddBalanceAsync(request.WalletId, GetBalanceAmount(request.Type, request.Value), _unitOfWork.Transaction);
+            await _unitOfWork.CommitAsync();
+        }
+        catch
+        {
+            await _unitOfWork.RollbackAsync();
+            throw;
+        }
 
         return entry;
     }
 
-    public async Task<Entry> DeleteEntry(Guid userId, Guid id)
+    public async Task<Entry> UpdateEntry(Guid userId, UpdateEntryRequest request)
     {
-        var entry = new Entry { Id = id };
+        var validation = await _updateValidator.ValidateAsync(request);
+        if (!validation.IsValid)
+            throw new AppValidationException(validation);
 
-        await ValidateAsync<DeleteEntryValidator, Entry>(entry);
+        var oldEntry = await _entryRepository.GetByIdAsync(request.Id);
+        if (oldEntry is null)
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new(nameof(request.Id), "Lançamento não encontrado.")
+                }));
 
-        var existing = await _repository.GetByIdAsync(id);
+        var wallet = await _walletRepository.GetByIdAndUserAsync(oldEntry.WalletId!.Value, userId);
+        if (wallet is null)
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new("WalletId", "Carteira não encontrada.")
+                }));
+
+        await _unitOfWork.BeginAsync();
+
+        try
+        {
+            await _walletRepository.AddBalanceAsync(oldEntry.WalletId!.Value, GetReverseBalanceAmount(oldEntry.Type, oldEntry.Value), _unitOfWork.Transaction);
+
+            var updatedEntry = new Entry
+            {
+                Id = request.Id,
+                Title = request.Title,
+                Value = request.Value,
+                Type = request.Type,
+                Description = request.Description ?? string.Empty,
+                Category = request.Category,
+                Date = request.Date,
+                WalletId = request.WalletId
+            };
+
+            await _entryRepository.UpdateAsync(updatedEntry, _unitOfWork.Transaction);
+            await _walletRepository.AddBalanceAsync(request.WalletId, GetBalanceAmount(request.Type, request.Value), _unitOfWork.Transaction);
+
+            await _unitOfWork.CommitAsync();
+            return updatedEntry;
+        }
+        catch
+        {
+            await _unitOfWork.RollbackAsync();
+            throw;
+        }
+    }
+
+    public async Task<Entry> DeleteEntry(Guid userId, DeleteEntryRequest request)
+    {
+        var validation = await _deleteValidator.ValidateAsync(request);
+        if (!validation.IsValid)
+            throw new AppValidationException(validation);
+
+        var existing = await _entryRepository.GetByIdAsync(request.Id);
         if (existing is null)
             throw new AppValidationException(new FluentValidation.Results.ValidationResult(
                 new List<FluentValidation.Results.ValidationFailure>
                 {
-                    new(nameof(id), "Lançamento não encontrado.")
+                    new(nameof(request.Id), "Lançamento não encontrado.")
                 }));
 
         var wallet = await _walletRepository.GetByIdAndUserAsync(existing.WalletId!.Value, userId);
@@ -94,46 +203,29 @@ public class EntryService : IEntryService
                     new("WalletId", "Carteira não encontrada.")
                 }));
 
-        await ReverseWalletBalance(existing.WalletId!.Value, existing.Type, existing.Value);
+        await _unitOfWork.BeginAsync();
 
-        await _repository.DeleteAsync(id);
-
-        return existing;
+        try
+        {
+            await _walletRepository.AddBalanceAsync(existing.WalletId!.Value, GetReverseBalanceAmount(existing.Type, existing.Value), _unitOfWork.Transaction);
+            await _entryRepository.DeleteAsync(request.Id, _unitOfWork.Transaction);
+            await _unitOfWork.CommitAsync();
+            return existing;
+        }
+        catch
+        {
+            await _unitOfWork.RollbackAsync();
+            throw;
+        }
     }
 
-    public async Task<IEnumerable<Entry>> GetEntriesByMonth(Guid userId, GetEntriesByMonthQuery query)
+    private static decimal GetBalanceAmount(EntryType type, decimal value)
     {
-        await ValidateAsync<GetEntriesByMonthQueryValidator, GetEntriesByMonthQuery>(query);
-
-        var wallet = await _walletRepository.GetByIdAndUserAsync(query.WalletId!.Value, userId);
-        if (wallet is null)
-            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
-                new List<FluentValidation.Results.ValidationFailure>
-                {
-                    new("WalletId", "Carteira não encontrada.")
-                }));
-
-        return await _repository.GetByMonthAsync(query.Month!.Value, query.Year!.Value, query.WalletId!.Value);
+        return type == EntryType.Credit ? value : -value;
     }
 
-    private async Task UpdateWalletBalance(Guid walletId, EntryType type, decimal value)
+    private static decimal GetReverseBalanceAmount(EntryType type, decimal value)
     {
-        var amount = type == EntryType.Credit ? value : -value;
-        await _walletRepository.AddBalanceAsync(walletId, amount);
-    }
-
-    private async Task ReverseWalletBalance(Guid walletId, EntryType type, decimal value)
-    {
-        var amount = type == EntryType.Credit ? -value : value;
-        await _walletRepository.AddBalanceAsync(walletId, amount);
-    }
-
-    private async Task ValidateAsync<TValidator, T>(T instance) where TValidator : IValidator<T>
-    {
-        var validator = (TValidator)_serviceProvider.GetService(typeof(TValidator))!;
-        var result = await validator.ValidateAsync(instance!);
-
-        if (!result.IsValid)
-            throw new AppValidationException(result);
+        return type == EntryType.Credit ? -value : value;
     }
 }

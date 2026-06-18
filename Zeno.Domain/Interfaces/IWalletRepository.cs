@@ -10,5 +10,6 @@ public interface IWalletRepository
     Task<WalletEntity> CreateAsync(WalletEntity wallet);
     Task<WalletEntity> UpdateAsync(WalletEntity wallet);
     Task DeleteAsync(Guid id);
-    Task AddBalanceAsync(Guid id, decimal amount);
+    Task AddBalanceAsync(Guid id, decimal amount, object? transaction = null);
+    Task<decimal> GetTotalByUserAndMonthAsync(Guid userId, int month, int year);
 }

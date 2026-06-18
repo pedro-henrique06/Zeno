@@ -11,4 +11,5 @@
   <Folder Name="/4 - Infrastructure/">
     <Project Path="Zeno.Infrastructure.SQL/Zeno.Infrastructure.SQL.csproj" Id="508d79dc-d0d0-4aff-8d23-086400ba8332" />
   </Folder>
+  <Project Path="Zeno.Tests/Zeno.Tests.csproj" />
 </Solution>

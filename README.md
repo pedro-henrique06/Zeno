@@ -5,12 +5,13 @@ API de gestao financeira pessoal com suporte a casas compartilhadas e regra de e
 ## Stack
 
 - **.NET 10.0** - ASP.NET Core Web API
-- **SQL Server 2022 Express** - Banco de dados (Docker)
-- **Dapper** - Micro-ORM (raw SQL)
-- **JWT Bearer** - Autenticacao
-- **FluentValidation** - Validacao de dados
+- **PostgreSQL 16** - Banco de dados
+- **Dapper** - Micro-ORM
+- **JWT Bearer** - Autenticação
+- **FluentValidation** - Validação
 - **BCrypt** - Hash de senhas
-- **Swagger** - Documentacao da API (ambiente de desenvolvimento)
+- **Swagger** - Documentação da API
+- **Docker Compose** - Ambiente local
 
 ---
 
@@ -369,30 +370,103 @@ Users
 
 ## Configuracao
 
-### appsettings.json
+### appsettings.json (sem valores reais)
 
 ```json
 {
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost,1433;Database=ZenoDb;User Id=sa;Password=Z3n0@Sql2024!;TrustServerCertificate=True;"
+  "Database": {
+    "ConnectionString": ""
   },
   "Jwt": {
-    "Key": "sua-chave-secreta-aqui",
+    "Key": "",
     "Issuer": "Zeno.API",
     "Audience": "Zeno.Client",
     "ExpiresInHours": "8"
+  },
+  "OAuth": {
+    "Google": {
+      "ClientId": "",
+      "ClientSecret": ""
+    }
+  },
+  "Encryption": {
+    "Key": ""
   }
 }
 ```
 
-### Docker
+> Use variáveis de ambiente ou User Secrets para fornecer os valores reais.
+
+### Docker Compose
 
 ```bash
-docker-compose up -d    # Sobe SQL Server com schema inicializado automaticamente
+docker-compose up -d    # Sobe PostgreSQL
 docker-compose down     # Para os containers
 ```
 
-O script `docker/init.sql` cria o banco e todas as tabelas automaticamente no primeiro startup. As migracoes sao idempotentes (IF NOT EXISTS).
+O script `docker/init.sql` cria o banco e todas as tabelas automaticamente no primeiro startup. As migrações são idempotentes (IF NOT EXISTS).
+
+---
+
+## Arquitetura
+
+O projeto está dividido em camadas:
+
+- **Zeno** (API): camada de Controllers, Middlewares, Filters e configuração do host.
+- **Zeno.Application**: regras de aplicação, Services, Validators, Requests, Responses e Interfaces.
+- **Zeno.Domain**: entidades, enums, value objects e regras de domínio.
+- **Zeno.Infrastructure.SQL**: acesso a dados usando Dapper e PostgreSQL, contextos e configurações.
+
+### Fluxo de uma requisição
+
+```
+Controller → Service → Validator → Repository → Database
+```
+
+1. O Controller recebe a requisição e valida o DTO.
+2. O Service aplica as regras de negócio.
+3. O Validator valida os dados de entrada.
+4. O Repository persiste os dados no banco.
+
+---
+
+## Configuração
+
+### Variáveis de Ambiente (ou User Secrets)
+
+```bash
+dotnet user-secrets init --project Zeno/Zeno.csproj
+dotnet user-secrets set "Jwt:Key" "sua-chave-forte" --project Zeno/Zeno.csproj
+dotnet user-secrets set "Database:ConnectionString" "Host=localhost;Port=5432;Database=ZenoDb;Username=postgres;Password=postgres" --project Zeno/Zeno.csproj
+dotnet user-secrets set "Encryption:Key" "sua-chave-de-criptografia" --project Zeno/Zeno.csproj
+```
+
+### appsettings.json (sem valores reais)
+
+```json
+{
+  "Database": {
+    "ConnectionString": ""
+  },
+  "Jwt": {
+    "Key": "",
+    "Issuer": "Zeno.API",
+    "Audience": "Zeno.Client",
+    "ExpiresInHours": "8"
+  },
+  "OAuth": {
+    "Google": {
+      "ClientId": "",
+      "ClientSecret": ""
+    }
+  },
+  "Encryption": {
+    "Key": ""
+  }
+}
+```
+
+> Use variáveis de ambiente ou User Secrets para fornecer os valores reais.
 
 ---
 

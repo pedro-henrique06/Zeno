@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Zeno.Application.Interfaces;
 using Zeno.Application.Requests;
+using Zeno.Application.Requests.Entries;
+using Zeno.Application.Responses.Common;
 using Zeno.Domain.Entry;
 
 namespace Zeno.Controllers;
@@ -17,31 +19,34 @@ public class EntryController : AppControllerBase
     }
 
     [HttpGet]
-    public Task<IActionResult> GetByMonth([FromQuery] int? month, [FromQuery] int? year, [FromQuery] Guid? walletId)
+    public async Task<IActionResult> GetByMonth([FromQuery] GetEntriesByMonthQuery query)
     {
         var userId = GetUserId();
-        var query = new GetEntriesByMonthQuery { Month = month, Year = year, WalletId = walletId };
-        return HandleAsync(() => _entryService.GetEntriesByMonth(userId, query), data => Ok(data));
+        var result = await _entryService.GetEntriesByMonth(userId, query);
+        return Ok(ApiResponse<PagedResponse<Entry>>.Ok(result));
     }
 
     [HttpPost]
-    public Task<IActionResult> Create([FromBody] Entry entry)
+    public async Task<IActionResult> Create([FromBody] CreateEntryRequest request)
     {
         var userId = GetUserId();
-        return HandleAsync(() => _entryService.CreateEntry(userId, entry), data => CreatedAtAction(nameof(GetByMonth), new { id = data.Id }, data));
+        var data = await _entryService.CreateEntry(userId, request);
+        return CreatedAtAction(nameof(GetByMonth), new { id = data.Id }, ApiResponse<Entry>.Ok(data));
     }
 
     [HttpPut]
-    public Task<IActionResult> Update([FromBody] Entry entry)
+    public async Task<IActionResult> Update([FromBody] UpdateEntryRequest request)
     {
         var userId = GetUserId();
-        return HandleAsync(() => _entryService.UpdateEntry(userId, entry), _ => NoContent());
+        await _entryService.UpdateEntry(userId, request);
+        return NoContent();
     }
 
     [HttpDelete("{id:guid}")]
-    public Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete(Guid id)
     {
         var userId = GetUserId();
-        return HandleAsync(() => _entryService.DeleteEntry(userId, id), _ => NoContent());
+        await _entryService.DeleteEntry(userId, new DeleteEntryRequest { Id = id });
+        return NoContent();
     }
 }
