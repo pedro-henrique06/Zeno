@@ -54,6 +54,7 @@ builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IHomeService, HomeService>();
 builder.Services.AddScoped<ISalaryService, SalaryService>();
+builder.Services.AddScoped<IProjectionService, ProjectionService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<ITokenBlacklistService, TokenBlacklistService>();
 builder.Services.AddMemoryCache();
