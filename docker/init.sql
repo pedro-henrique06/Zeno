@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS Wallets (
     UserId UUID NOT NULL,
     Balance NUMERIC(18,2) NOT NULL DEFAULT 0,
     Currency VARCHAR(3) NOT NULL DEFAULT 'BRL',
+    DailyBudget NUMERIC(18,2) NULL,
     CreatedAt TIMESTAMP NOT NULL,
     CONSTRAINT FK_Wallets_Users FOREIGN KEY (UserId) REFERENCES Users(Id)
 );
@@ -44,6 +45,7 @@ CREATE TABLE IF NOT EXISTS Entries (
     Title VARCHAR(100) NOT NULL,
     Value NUMERIC(18,2) NOT NULL,
     Type INT NOT NULL,
+    Kind INT NOT NULL DEFAULT 1,
     Description TEXT NOT NULL,
     Category INT NOT NULL,
     Date TIMESTAMP NOT NULL,
@@ -79,18 +81,21 @@ CREATE TABLE IF NOT EXISTS HomeExpenses (
     CONSTRAINT FK_HomeExpenses_Homes FOREIGN KEY (HomeId) REFERENCES Homes(Id)
 );
 
-CREATE TABLE IF NOT EXISTS Salaries (
+CREATE TABLE IF NOT EXISTS RecurrentEntries (
     Id UUID PRIMARY KEY,
     UserId UUID NOT NULL,
-    AccountId UUID NOT NULL,
-    Amount NUMERIC(18,2) NOT NULL,
-    Description VARCHAR(200) NOT NULL,
+    WalletId UUID NOT NULL,
+    Title VARCHAR(200) NOT NULL,
+    Value NUMERIC(18,2) NOT NULL,
+    Type INT NOT NULL DEFAULT 1,
+    Kind INT NOT NULL DEFAULT 0,
+    Category INT NOT NULL DEFAULT 0,
     DayOfMonth INT NOT NULL,
     Active BOOLEAN NOT NULL DEFAULT TRUE,
     CreatedAt TIMESTAMP NOT NULL,
     LastProcessedAt TIMESTAMP NULL,
-    CONSTRAINT FK_Salaries_Users FOREIGN KEY (UserId) REFERENCES Users(Id),
-    CONSTRAINT FK_Salaries_Accounts FOREIGN KEY (AccountId) REFERENCES Accounts(Id)
+    CONSTRAINT FK_RecurrentEntries_Users FOREIGN KEY (UserId) REFERENCES Users(Id),
+    CONSTRAINT FK_RecurrentEntries_Wallets FOREIGN KEY (WalletId) REFERENCES Wallets(Id)
 );
 
 CREATE TABLE IF NOT EXISTS HomeMembers (
@@ -101,20 +106,6 @@ CREATE TABLE IF NOT EXISTS HomeMembers (
     CONSTRAINT PK_HomeMembers PRIMARY KEY (HomeId, UserId),
     CONSTRAINT FK_HomeMembers_Homes FOREIGN KEY (HomeId) REFERENCES Homes(Id),
     CONSTRAINT FK_HomeMembers_Users FOREIGN KEY (UserId) REFERENCES Users(Id)
-);
-
-CREATE TABLE IF NOT EXISTS RecurringExpenses (
-    Id UUID PRIMARY KEY,
-    UserId UUID NOT NULL,
-    WalletId UUID NOT NULL,
-    Title VARCHAR(100) NOT NULL,
-    Value NUMERIC(18,2) NOT NULL,
-    DayOfMonth INT NOT NULL,
-    IsActive BOOLEAN NOT NULL DEFAULT TRUE,
-    CreatedAt TIMESTAMP NOT NULL,
-    LastProcessedAt TIMESTAMP NULL,
-    CONSTRAINT FK_RecurringExpenses_Users FOREIGN KEY (UserId) REFERENCES Users(Id),
-    CONSTRAINT FK_RecurringExpenses_Wallets FOREIGN KEY (WalletId) REFERENCES Wallets(Id)
 );
 
 CREATE TABLE IF NOT EXISTS FinancialGoals (
@@ -157,8 +148,8 @@ CREATE TABLE IF NOT EXISTS CategoryRules (
     CONSTRAINT FK_CategoryRules_Categories FOREIGN KEY (CategoryId) REFERENCES Categories(Id)
 );
 
-CREATE INDEX IF NOT EXISTS IX_RecurringExpenses_User ON RecurringExpenses(UserId);
-CREATE INDEX IF NOT EXISTS IX_RecurringExpenses_Day ON RecurringExpenses(DayOfMonth, IsActive);
+CREATE INDEX IF NOT EXISTS IX_RecurrentEntries_Wallet ON RecurrentEntries(WalletId);
+CREATE INDEX IF NOT EXISTS IX_RecurrentEntries_Day ON RecurrentEntries(DayOfMonth, Active);
 CREATE INDEX IF NOT EXISTS IX_FinancialGoals_User ON FinancialGoals(UserId);
 CREATE INDEX IF NOT EXISTS IX_Debts_User ON Debts(UserId);
 CREATE INDEX IF NOT EXISTS IX_Categories_UserId ON Categories(UserId);

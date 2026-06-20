@@ -73,6 +73,39 @@ public class UserRepository : IUserRepository
         return count > 0;
     }
 
+    public async Task<bool> EmailExistsForOtherUserAsync(string email, Guid userId)
+    {
+        const string sql = "SELECT COUNT(1) FROM users WHERE email = @Email AND id != @UserId";
+        var count = await _context.Connection.ExecuteScalarAsync<int>(sql, new { Email = email, UserId = userId });
+        return count > 0;
+    }
+
+    public async Task<User> UpdateProfileAsync(User user)
+    {
+        const string sql = @"UPDATE users
+                             SET name = @Name, email = @Email, phone = @Phone, document = @Document, birthdate = @BirthDate, updatedat = @UpdatedAt
+                             WHERE id = @Id";
+
+        await _context.Connection.ExecuteAsync(sql, new
+        {
+            user.Id,
+            user.Name,
+            user.Email,
+            user.Phone,
+            user.Document,
+            BirthDate = user.BirthDate.HasValue ? user.BirthDate.Value : (DateTime?)null,
+            UpdatedAt = DateTime.UtcNow
+        });
+
+        return user;
+    }
+
+    public async Task UpdatePasswordAsync(Guid userId, string passwordHash)
+    {
+        const string sql = @"UPDATE users SET passwordhash = @PasswordHash, updatedat = @UpdatedAt WHERE id = @Id";
+        await _context.Connection.ExecuteAsync(sql, new { Id = userId, PasswordHash = passwordHash, UpdatedAt = DateTime.UtcNow });
+    }
+
     private User MapToUser(dynamic row)
     {
         Guid id = Guid.Empty;

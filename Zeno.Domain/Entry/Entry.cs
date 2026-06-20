@@ -15,6 +15,8 @@ namespace Zeno.Domain.Entry
 
         public EntryType Type  { get; set; }
 
+        public EntryKind Kind { get; set; }
+
         public string Description { get; set; } = string.Empty;
 
         public Category Category { get; set; }

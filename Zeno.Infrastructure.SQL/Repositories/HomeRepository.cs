@@ -305,9 +305,9 @@ public class HomeRepository : IHomeRepository
 
     private async Task<Dictionary<Guid, decimal>> GetMemberSalariesAsync(IEnumerable<Guid> walletIds)
     {
-        const string sql = @"SELECT walletid, SUM(amount) as total_amount
-                             FROM salaries
-                             WHERE walletid IN @WalletIds AND active = true
+        const string sql = @"SELECT walletid, SUM(value) as total_amount
+                             FROM recurrententries
+                             WHERE walletid IN @WalletIds AND active = true AND kind = 0
                              GROUP BY walletid";
         var salaries = await _context.Connection.QueryAsync<(Guid WalletId, decimal TotalAmount)>(sql, new { WalletIds = walletIds });
         return salaries.ToDictionary(s => s.WalletId, s => s.TotalAmount);

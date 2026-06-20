@@ -18,9 +18,8 @@ public static class ServiceConfigurator
         services.AddScoped<IWalletRepository, WalletRepository>();
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<IHomeRepository, HomeRepository>();
-        services.AddScoped<ISalaryRepository, SalaryRepository>();
+        services.AddScoped<IRecurringEntryRepository, RecurringEntryRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IRecurringExpenseRepository, RecurringExpenseRepository>();
         services.AddScoped<IFinancialGoalRepository, FinancialGoalRepository>();
         services.AddScoped<IDebtRepository, DebtRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();

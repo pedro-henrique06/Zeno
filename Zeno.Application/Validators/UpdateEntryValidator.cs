@@ -20,8 +20,11 @@ public class UpdateEntryValidator : AbstractValidator<Entry>
         RuleFor(x => x.Type)
             .IsInEnum().WithMessage("O tipo de entrada é inválido.");
 
+        RuleFor(x => x.Kind)
+            .IsInEnum().WithMessage("O tipo de lançamento é inválido.");
+
         RuleFor(x => x.Category)
-            .NotEqual(Domain.Enum.Category.None).WithMessage("A categoria é obrigatória.");
+            .IsInEnum().WithMessage("A categoria é inválida.");
 
         RuleFor(x => x.WalletId)
             .NotNull().WithMessage("A carteira é obrigatória.");

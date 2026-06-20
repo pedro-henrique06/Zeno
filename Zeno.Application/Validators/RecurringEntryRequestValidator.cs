@@ -1,15 +1,15 @@
 using FluentValidation;
-using Zeno.Application.Requests.Entries;
+using Zeno.Application.Requests;
 
 namespace Zeno.Application.Validators;
 
-public class CreateEntryRequestValidator : AbstractValidator<CreateEntryRequest>
+public class CreateRecurringEntryRequestValidator : AbstractValidator<CreateRecurringEntryRequest>
 {
-    public CreateEntryRequestValidator()
+    public CreateRecurringEntryRequestValidator()
     {
         RuleFor(x => x.Title)
             .NotEmpty().WithMessage("O título é obrigatório.")
-            .MaximumLength(100).WithMessage("O título deve ter no máximo 100 caracteres.");
+            .MaximumLength(200).WithMessage("O título deve ter no máximo 200 caracteres.");
 
         RuleFor(x => x.Value)
             .GreaterThan(0).WithMessage("O valor deve ser maior que zero.");
@@ -23,21 +23,24 @@ public class CreateEntryRequestValidator : AbstractValidator<CreateEntryRequest>
         RuleFor(x => x.Category)
             .IsInEnum().WithMessage("A categoria é inválida.");
 
+        RuleFor(x => x.DayOfMonth)
+            .InclusiveBetween(1, 31).WithMessage("O dia do mês deve estar entre 1 e 31.");
+
         RuleFor(x => x.WalletId)
             .NotEmpty().WithMessage("A carteira é obrigatória.");
     }
 }
 
-public class UpdateEntryRequestValidator : AbstractValidator<UpdateEntryRequest>
+public class UpdateRecurringEntryRequestValidator : AbstractValidator<UpdateRecurringEntryRequest>
 {
-    public UpdateEntryRequestValidator()
+    public UpdateRecurringEntryRequestValidator()
     {
         RuleFor(x => x.Id)
             .NotEmpty().WithMessage("O Id é obrigatório para atualização.");
 
         RuleFor(x => x.Title)
             .NotEmpty().WithMessage("O título é obrigatório.")
-            .MaximumLength(100).WithMessage("O título deve ter no máximo 100 caracteres.");
+            .MaximumLength(200).WithMessage("O título deve ter no máximo 200 caracteres.");
 
         RuleFor(x => x.Value)
             .GreaterThan(0).WithMessage("O valor deve ser maior que zero.");
@@ -51,16 +54,7 @@ public class UpdateEntryRequestValidator : AbstractValidator<UpdateEntryRequest>
         RuleFor(x => x.Category)
             .IsInEnum().WithMessage("A categoria é inválida.");
 
-        RuleFor(x => x.WalletId)
-            .NotEmpty().WithMessage("A carteira é obrigatória.");
-    }
-}
-
-public class DeleteEntryRequestValidator : AbstractValidator<DeleteEntryRequest>
-{
-    public DeleteEntryRequestValidator()
-    {
-        RuleFor(x => x.Id)
-            .NotEmpty().WithMessage("O Id é obrigatório para exclusão.");
+        RuleFor(x => x.DayOfMonth)
+            .InclusiveBetween(1, 31).WithMessage("O dia do mês deve estar entre 1 e 31.");
     }
 }

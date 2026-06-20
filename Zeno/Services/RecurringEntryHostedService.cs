@@ -2,11 +2,11 @@ using Zeno.Application.Interfaces;
 
 namespace Zeno.Services;
 
-public class RecurringSalaryHostedService : BackgroundService
+public class RecurringEntryHostedService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
 
-    public RecurringSalaryHostedService(IServiceProvider serviceProvider)
+    public RecurringEntryHostedService(IServiceProvider serviceProvider)
     {
         _serviceProvider = serviceProvider;
     }
@@ -18,15 +18,15 @@ public class RecurringSalaryHostedService : BackgroundService
             try
             {
                 using var scope = _serviceProvider.CreateScope();
-                var salaryService = scope.ServiceProvider.GetRequiredService<ISalaryService>();
+                var recurringEntryService = scope.ServiceProvider.GetRequiredService<IRecurringEntryService>();
 
-                await salaryService.ProcessPendingSalaries();
+                await recurringEntryService.ProcessPendingEntries();
 
                 await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[RecurringSalaryHostedService] Erro: {ex.Message}");
+                Console.WriteLine($"[RecurringEntryHostedService] Erro: {ex.Message}");
                 await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
             }
         }
