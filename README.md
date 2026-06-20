@@ -92,15 +92,15 @@ Usuarios autenticados via OAuth (sem senha local) nao podem usar a troca de senh
 
 ### 2. Cadastrar lancamentos recorrentes (salario, contas fixas, etc.)
 
-Um lancamento recorrente representa receita ou despesa fixa (salario, aluguel, assinatura...). Define-se o dia do mes em que deve ser lancado e o `kind` (veja [EntryKind](#entrykind)) que indica se e receita (`Entrada`) ou algum tipo de despesa. Um background service verifica a cada hora se ha lancamentos recorrentes pendentes para o dia atual e os credita/debita automaticamente na conta/carteira vinculada, criando o `Entry` correspondente.
+Um lancamento recorrente representa receita ou despesa fixa (salario, aluguel, assinatura...), vinculado diretamente a uma carteira. Define-se o `type` (Credit/Debit), o dia do mes em que deve ser lancado e o `kind` (veja [EntryKind](#entrykind)). Um background service verifica a cada hora se ha lancamentos recorrentes pendentes para o dia atual e os credita/debita automaticamente na carteira vinculada, criando o `Entry` correspondente.
 
 ```
-POST   /api/recurringentry                -> Cria um lancamento recorrente vinculado a uma conta
-GET    /api/recurringentry/wallet/{id}    -> Lista lancamentos recorrentes de uma carteira
-GET    /api/recurringentry/user/{userId}  -> Lista lancamentos recorrentes do usuario
-GET    /api/recurringentry/{id}           -> Busca lancamento recorrente por ID
-PUT    /api/recurringentry                -> Atualiza lancamento recorrente
-DELETE /api/recurringentry/{id}           -> Remove lancamento recorrente
+POST   /api/recurring-entries              -> Cria um lancamento recorrente vinculado a uma carteira
+GET    /api/recurring-entries              -> Lista lancamentos recorrentes do usuario autenticado
+GET    /api/recurring-entries/wallet/{id}  -> Lista lancamentos recorrentes de uma carteira
+GET    /api/recurring-entries/{id}         -> Busca lancamento recorrente por ID
+PUT    /api/recurring-entries              -> Atualiza lancamento recorrente
+DELETE /api/recurring-entries/{id}         -> Remove lancamento recorrente
 ```
 
 ### 3. Criar uma carteira
@@ -339,7 +339,7 @@ Users
   |      |
   |      |--< Entries (WalletId FK)
   |      |--< Accounts (WalletId FK)
-  |      |      |--< RecurrentEntries (AccountId FK)
+  |      |--< RecurrentEntries (WalletId FK)
   |      |--< HomeWallets (WalletId FK, composite PK)
   |
   |--< RecurrentEntries (UserId FK)
@@ -360,7 +360,7 @@ Users
 | **Wallets** | Id, Name, Description, Balance, UserId, Currency, DailyBudget, CreatedAt | Id | UserId → Users |
 | **Accounts** | Id, Name, Bank, Type, Balance, WalletId, CreatedAt | Id | WalletId → Wallets |
 | **Entries** | Id, Title, Value, Type, Kind, Description, Category, Date, WalletId | Id | WalletId → Wallets |
-| **RecurrentEntries** | Id, UserId, AccountId, Title, Value, Kind, Category, DayOfMonth, Active, CreatedAt, LastProcessedAt | Id | UserId → Users, AccountId → Accounts |
+| **RecurrentEntries** | Id, UserId, WalletId, Title, Value, Type, Kind, Category, DayOfMonth, Active, CreatedAt, LastProcessedAt | Id | UserId → Users, WalletId → Wallets |
 | **Homes** | Id, Name, Description, SplitMode, CreatedAt | Id | - |
 | **HomeMembers** | HomeId, UserId, Role, JoinedAt | (HomeId, UserId) | HomeId → Homes, UserId → Users |
 | **HomeWallets** | HomeId, WalletId | (HomeId, WalletId) | HomeId → Homes, WalletId → Wallets |
@@ -423,7 +423,7 @@ Classificacao de uso escolhida pelo usuario na criacao do lancamento, independen
 - Cada usuario so enxerga seus proprios dados (carteiras, lancamentos, lancamentos recorrentes).
 - A API extrai o `UserId` do token JWT e filtra todas as consultas.
 - Lancamentos so podem ser criados/editados/removidos em carteiras do proprio usuario.
-- Lancamentos recorrentes so podem ser gerenciados em contas do proprio usuario.
+- Lancamentos recorrentes so podem ser gerenciados em carteiras do proprio usuario.
 
 ### Casas (Homes)
 
@@ -434,10 +434,10 @@ Classificacao de uso escolhida pelo usuario na criacao do lancamento, independen
 
 ### Lancamentos recorrentes
 
-- Generalizam o antigo modelo de "salario": cada `RecurrentEntry` tem um `Kind` ([EntryKind](#entrykind)) e pode representar tanto receita (`Entrada`) quanto qualquer tipo de despesa fixa (aluguel, assinatura, etc.).
+- Generalizam o antigo modelo de "salario" e o de "despesas recorrentes" em uma unica entidade: cada `RecurrentEntry` e vinculada a uma carteira (`WalletId`) e tem um `Type` (Credit/Debit) e um `Kind` ([EntryKind](#entrykind)), podendo representar tanto receita (`Entrada`) quanto qualquer tipo de despesa fixa (aluguel, assinatura, etc.).
 - O campo `DayOfMonth` define o dia do mes em que o lancamento deve ser processado.
 - Um `BackgroundService` roda a cada hora e verifica se ha lancamentos recorrentes pendentes para o dia atual, considerando tanto receitas quanto despesas.
-- Ao processar, um `Entry` correspondente e criado (`Type = Credit` quando `Kind = Entrada`, `Type = Debit` nos demais casos), o saldo da conta/carteira e atualizado e o campo `LastProcessedAt` e atualizado.
+- Ao processar, um `Entry` correspondente e criado com o mesmo `Type`/`Kind`/`Category`, o saldo da carteira e atualizado e o campo `LastProcessedAt` e atualizado.
 - Um lancamento recorrente so e processado uma unica vez por mes.
 
 ### Saldo da carteira

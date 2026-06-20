@@ -90,9 +90,9 @@ public class BalanceService : IBalanceService
         var baselineMonthlyNet = avgIncome - avgExpenses;
 
         var recurringEntries = (await _recurringEntryRepository.GetByWalletAsync(walletId))
-            .Where(r => r.Active)
+            .Where(r => r.IsActive)
             .ToList();
-        var recurringMonthlyNet = recurringEntries.Sum(r => r.Kind == EntryKind.Entrada ? r.Value : -r.Value);
+        var recurringMonthlyNet = recurringEntries.Sum(r => r.Type == EntryType.Credit ? r.Value : -r.Value);
 
         var variableDailyNet = (baselineMonthlyNet - recurringMonthlyNet) / AvgDaysInMonth;
 
@@ -106,7 +106,7 @@ public class BalanceService : IBalanceService
             running += variableDailyNet;
 
             foreach (var recurring in recurringEntries.Where(r => r.DayOfMonth == date.Day))
-                running += recurring.Kind == EntryKind.Entrada ? recurring.Value : -recurring.Value;
+                running += recurring.Type == EntryType.Credit ? recurring.Value : -recurring.Value;
 
             days.Add(new DailyBalanceEntry { Date = date, Balance = Math.Round(running, 2) });
         }
