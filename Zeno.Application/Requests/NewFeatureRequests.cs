@@ -1,18 +1,26 @@
+using Zeno.Domain.Enum;
+
 namespace Zeno.Application.Requests;
 
-public class CreateRecurringExpenseRequest
+public class CreateRecurringEntryRequest
 {
     public string Title { get; set; } = string.Empty;
     public decimal Value { get; set; }
+    public EntryType Type { get; set; }
+    public EntryKind Kind { get; set; }
+    public Category Category { get; set; }
     public int DayOfMonth { get; set; }
     public Guid WalletId { get; set; }
 }
 
-public class UpdateRecurringExpenseRequest
+public class UpdateRecurringEntryRequest
 {
     public Guid Id { get; set; }
     public string Title { get; set; } = string.Empty;
     public decimal Value { get; set; }
+    public EntryType Type { get; set; }
+    public EntryKind Kind { get; set; }
+    public Category Category { get; set; }
     public int DayOfMonth { get; set; }
     public bool IsActive { get; set; }
 }

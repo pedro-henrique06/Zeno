@@ -45,7 +45,7 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
-builder.Services.AddValidatorsFromAssemblyContaining<Zeno.Application.Validators.EntryValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<Zeno.Application.Validators.CreateEntryRequestValidator>();
 var connStr = builder.Configuration["Database:ConnectionString"]!;
 builder.Services.AddInfrastructureSQL(connStr, builder.Configuration["Encryption:Key"]!);
 builder.Services.AddScoped<IEntryService, EntryService>();
@@ -57,17 +57,18 @@ builder.Services.AddScoped<IHomeExpenseService, HomeExpenseService>();
 builder.Services.AddScoped<IHomeSplitService, HomeSplitService>();
 builder.Services.AddScoped<IHomeBudgetService, HomeBudgetService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
-builder.Services.AddScoped<IRecurringExpenseService, RecurringExpenseService>();
 builder.Services.AddScoped<IFinancialGoalService, FinancialGoalService>();
 builder.Services.AddScoped<IDebtService, DebtService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<ICategoryRuleService, CategoryRuleService>();
-builder.Services.AddScoped<ISalaryService, SalaryService>();
+builder.Services.AddScoped<IRecurringEntryService, RecurringEntryService>();
+builder.Services.AddScoped<IBalanceService, BalanceService>();
+builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IProjectionService, ProjectionService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<ITokenBlacklistService, TokenBlacklistService>();
 builder.Services.AddMemoryCache();
-builder.Services.AddHostedService<RecurringSalaryHostedService>();
+builder.Services.AddHostedService<RecurringEntryHostedService>();
 builder.Services.AddHealthChecks()
     .AddNpgSql(builder.Configuration["Database:ConnectionString"]!, name: "postgresql", tags: new[] { "db", "postgres" });
 

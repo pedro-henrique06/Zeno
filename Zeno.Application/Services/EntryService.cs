@@ -48,23 +48,39 @@ public class EntryService : IEntryService
         if (!validation.IsValid)
             throw new AppValidationException(validation);
 
-        var wallet = await _walletRepository.GetByIdAndUserAsync(query.WalletId!.Value, userId);
-        if (wallet is null)
-            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
-                new List<FluentValidation.Results.ValidationFailure>
-                {
-                    new("WalletId", "Carteira não encontrada.")
-                }));
-
         var pageSize = Math.Min(query.PageSize, 100);
-        var (items, totalCount) = await _entryRepository.GetByMonthPagedAsync(
-            query.Month!.Value,
-            query.Year!.Value,
-            query.WalletId!.Value,
-            query.Type,
-            query.Category,
-            query.Page,
-            pageSize);
+
+        IEnumerable<Entry> items;
+        int totalCount;
+
+        if (!query.WalletId.HasValue)
+        {
+            (items, totalCount) = await _entryRepository.GetByMonthForUserPagedAsync(
+                query.Month!.Value,
+                query.Year!.Value,
+                userId,
+                query.Page,
+                pageSize);
+        }
+        else
+        {
+            var wallet = await _walletRepository.GetByIdAndUserAsync(query.WalletId.Value, userId);
+            if (wallet is null)
+                throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                    new List<FluentValidation.Results.ValidationFailure>
+                    {
+                        new("WalletId", "Carteira não encontrada.")
+                    }));
+
+            (items, totalCount) = await _entryRepository.GetByMonthPagedAsync(
+                query.Month!.Value,
+                query.Year!.Value,
+                query.WalletId.Value,
+                query.Type,
+                query.Category,
+                query.Page,
+                pageSize);
+        }
 
         return new PagedResponse<Entry>
         {
@@ -104,6 +120,7 @@ public class EntryService : IEntryService
             Title = request.Title,
             Value = request.Value,
             Type = request.Type,
+            Kind = request.Kind,
             Description = request.Description ?? string.Empty,
             Category = request.Category,
             CategoryId = categoryId,
@@ -162,6 +179,7 @@ public class EntryService : IEntryService
                 Title = request.Title,
                 Value = request.Value,
                 Type = request.Type,
+                Kind = request.Kind,
                 Description = request.Description ?? string.Empty,
                 Category = request.Category,
                 Date = request.Date,

@@ -8,5 +8,6 @@ public class Wallet
     public Guid UserId { get; set; }
     public decimal Balance { get; set; }
     public string Currency { get; set; } = "BRL";
+    public decimal? DailyBudget { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

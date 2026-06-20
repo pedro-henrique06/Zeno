@@ -58,16 +58,49 @@ POST /api/auth/login       -> Retorna o token JWT
 POST /api/auth/logout      -> Revoga o token atual
 ```
 
-### 2. Cadastrar salario
-
-O salario e recorrente. Define-se o dia do mes em que deve ser creditado. Um background service verifica a cada hora se ha salarios pendentes e os credit automaticamente na carteira vinculada.
+### 1.1. Editar perfil e senha
 
 ```
-POST   /api/salary                -> Cria um salario vinculado a uma carteira
-GET    /api/salary/wallet/{id}    -> Lista salarios de uma carteira
-GET    /api/salary/{id}           -> Busca salario por ID
-PUT    /api/salary                -> Atualiza salario
-DELETE /api/salary/{id}           -> Remove salario
+GET /api/user/me            -> Retorna os dados do perfil do usuario logado
+PUT /api/user/me            -> Atualiza nome, email, telefone, documento e data de nascimento
+PUT /api/user/me/password   -> Altera a senha (exige a senha atual)
+```
+
+Exemplo de corpo para `PUT /api/user/me`:
+
+```json
+{
+  "name": "Pedro Henrique",
+  "email": "pedro@example.com",
+  "phone": "11999999999",
+  "document": "12345678900",
+  "birthDate": "1995-05-20"
+}
+```
+
+Exemplo de corpo para `PUT /api/user/me/password`:
+
+```json
+{
+  "currentPassword": "senhaAtual123",
+  "newPassword": "novaSenha456",
+  "confirmNewPassword": "novaSenha456"
+}
+```
+
+Usuarios autenticados via OAuth (sem senha local) nao podem usar a troca de senha enquanto `hasPassword` (retornado em `GET /api/user/me`) for `false`.
+
+### 2. Cadastrar lancamentos recorrentes (salario, contas fixas, etc.)
+
+Um lancamento recorrente representa receita ou despesa fixa (salario, aluguel, assinatura...), vinculado diretamente a uma carteira. Define-se o `type` (Credit/Debit), o dia do mes em que deve ser lancado e o `kind` (veja [EntryKind](#entrykind)). Um background service verifica a cada hora se ha lancamentos recorrentes pendentes para o dia atual e os credita/debita automaticamente na carteira vinculada, criando o `Entry` correspondente.
+
+```
+POST   /api/recurring-entries              -> Cria um lancamento recorrente vinculado a uma carteira
+GET    /api/recurring-entries              -> Lista lancamentos recorrentes do usuario autenticado
+GET    /api/recurring-entries/wallet/{id}  -> Lista lancamentos recorrentes de uma carteira
+GET    /api/recurring-entries/{id}         -> Busca lancamento recorrente por ID
+PUT    /api/recurring-entries              -> Atualiza lancamento recorrente
+DELETE /api/recurring-entries/{id}         -> Remove lancamento recorrente
 ```
 
 ### 3. Criar uma carteira
@@ -84,20 +117,46 @@ DELETE /api/wallet/{id}      -> Remove carteira
 
 ### 4. Gerar lancamentos na carteira
 
-Lancamentos (entries) sao creditos ou debitos que atualizam automaticamente o saldo da carteira.
+Lancamentos (entries) sao creditos ou debitos que atualizam automaticamente o saldo da carteira. Cada lancamento tem um `type` (Credit/Debit, efeito no saldo) e um `kind` (categoria de uso, ver [EntryKind](#entrykind)), escolhido pelo usuario na criacao.
 
 ```
-GET    /api/entry?month={}&year={}&walletId={}   -> Lista lancamentos por mes/ano/carteira
-POST   /api/entry                                   -> Cria lancamento
-PUT    /api/entry                                   -> Atualiza lancamento
-DELETE /api/entry/{id}                              -> Remove lancamento
+GET    /api/entry?month={}&year={}&walletId={}&page={}&pageSize={}   -> Lista lancamentos por mes/ano de uma carteira (paginado)
+GET    /api/entry?month={}&year={}&page={}&pageSize={}                -> Lista lancamentos do mes em TODAS as carteiras do usuario (sem walletId)
+POST   /api/entry                                                      -> Cria lancamento
+PUT    /api/entry                                                      -> Atualiza lancamento
+DELETE /api/entry/{id}                                                 -> Remove lancamento
 ```
+
+- `walletId` e opcional: quando omitido, o endpoint retorna os lancamentos agregados de todas as carteiras do usuario logado naquele mes/ano (usado pela tela "Totais").
+- `page`/`pageSize` (padrao `1`/`50`, maximo `200`) paginam o resultado agregado.
 
 Ao criar: o saldo da carteira e atualizado (+credito / -debito).
 Ao atualizar: o efeito do lancamento antigo e revertido e o novo e aplicado.
 Ao remover: o efeito do lancamento e revertido.
 
-### 4.1. Projecao financeira
+### 4.1. Saldo diario, projecao e orcamento da carteira
+
+Endpoints para o "Horizonte de saldos": saldo real dia a dia, media diaria de curto prazo, projecao de longo prazo e orcamento diario.
+
+```
+GET  /api/wallet/balances?month={}&year={}                 -> Saldo real de fim de dia, dia a dia, agregando TODAS as carteiras do usuario
+GET  /api/wallet/{id}/balances?month={}&year={}             -> Saldo real de fim de dia, dia a dia, de uma carteira
+GET  /api/wallet/{id}/daily-average?months={3}              -> Media diaria de receita/despesa dos ultimos N meses (curto prazo)
+GET  /api/wallet/{id}/forecast?months={3}                    -> Serie diaria projetada de saldo para os proximos N meses (longo prazo)
+GET  /api/wallet/{id}/card-invoice?month={}&year={}          -> Total lancado como `Cartao` (fatura) no mes
+GET  /api/wallet/{id}/daily-forecast?month={}&year={}        -> Gasto diario recomendado para o restante do mes, com base no orcamento
+PUT  /api/wallet/{id}/budget                                 -> Define o orcamento diario da carteira (gasto `Diario`)
+```
+
+Corpo de `PUT /api/wallet/{id}/budget`:
+
+```json
+{ "dailyBudget": 50.00 }
+```
+
+`balances` e calculado em cima do historico real de lancamentos (saldo acumulado dia a dia), nao e uma estimativa do front. `forecast` combina a media historica de receitas/despesas (excluindo o que ja vem dos lancamentos recorrentes ativos, para nao contar em dobro) com os lancamentos recorrentes reais previstos em seus dias do mes.
+
+### 4.2. Projecao financeira (simulacao de gasto extra)
 
 Simula o impacto de um gasto extra hipotetico no saldo da carteira nos proximos meses, usando a media de receitas e despesas dos ultimos 3 meses como base.
 
@@ -279,9 +338,11 @@ Users
   |--< Wallets (UserId FK)
   |      |
   |      |--< Entries (WalletId FK)
-  |      |--< Salaries (WalletId FK)
+  |      |--< Accounts (WalletId FK)
+  |      |--< RecurrentEntries (WalletId FK)
   |      |--< HomeWallets (WalletId FK, composite PK)
   |
+  |--< RecurrentEntries (UserId FK)
   |--< HomeMembers (UserId FK, composite PK)
          |
          Homes (HomeId FK from HomeMembers)
@@ -295,10 +356,11 @@ Users
 
 | Tabela | Campos | PK | FKs |
 |--------|--------|----|-----|
-| **Users** | Id, Name, Email, PasswordHash, CreatedAt | Id | - |
-| **Wallets** | Id, Name, Description, Balance, UserId, CreatedAt | Id | UserId → Users |
-| **Entries** | Id, Title, Value, Type, Description, Category, Date, WalletId | Id | WalletId → Wallets |
-| **Salaries** | Id, WalletId, Amount, Description, DayOfMonth, Active, CreatedAt, LastProcessedAt | Id | WalletId → Wallets |
+| **Users** | Id, Name, Email, PasswordHash, Phone, Document, BirthDate, Provider, ProviderId, CreatedAt, UpdatedAt, EmailVerified | Id | - |
+| **Wallets** | Id, Name, Description, Balance, UserId, Currency, DailyBudget, CreatedAt | Id | UserId → Users |
+| **Accounts** | Id, Name, Bank, Type, Balance, WalletId, CreatedAt | Id | WalletId → Wallets |
+| **Entries** | Id, Title, Value, Type, Kind, Description, Category, Date, WalletId | Id | WalletId → Wallets |
+| **RecurrentEntries** | Id, UserId, WalletId, Title, Value, Type, Kind, Category, DayOfMonth, Active, CreatedAt, LastProcessedAt | Id | UserId → Users, WalletId → Wallets |
 | **Homes** | Id, Name, Description, SplitMode, CreatedAt | Id | - |
 | **HomeMembers** | HomeId, UserId, Role, JoinedAt | (HomeId, UserId) | HomeId → Homes, UserId → Users |
 | **HomeWallets** | HomeId, WalletId | (HomeId, WalletId) | HomeId → Homes, WalletId → Wallets |
@@ -314,6 +376,18 @@ Users
 |-------|------|-----------|
 | 0 | Credit | Entrada (receita) |
 | 1 | Debit | Saida (despesa) |
+
+### EntryKind
+
+Classificacao de uso escolhida pelo usuario na criacao do lancamento, independente do `Type` (Credit/Debit). Usada pelo front-end para separar saldo, performance e fatura do cartao sem depender de heuristicas no cliente.
+
+| Valor | Nome | Descricao |
+|-------|------|-----------|
+| 0 | Entrada | Receita (salario, renda extra, etc.) |
+| 1 | Saida | Despesa comum |
+| 2 | Diario | Gasto do dia a dia (ex: alimentacao, transporte) |
+| 3 | Economia | Valor guardado/investido. Conta no saldo da carteira, mas deve ser **excluido** das somas de "Performance" do front-end |
+| 4 | Cartao | Despesa no cartao de credito. Somada na fatura mensal (`GET /api/wallet/{id}/card-invoice`) |
 
 ### Category
 
@@ -346,10 +420,10 @@ Users
 
 ### Isolamento de dados
 
-- Cada usuario so enxerga seus proprios dados (carteiras, lancamentos, salarios).
+- Cada usuario so enxerga seus proprios dados (carteiras, lancamentos, lancamentos recorrentes).
 - A API extrai o `UserId` do token JWT e filtra todas as consultas.
 - Lancamentos so podem ser criados/editados/removidos em carteiras do proprio usuario.
-- Salarios so podem ser gerenciados em carteiras do proprio usuario.
+- Lancamentos recorrentes so podem ser gerenciados em carteiras do proprio usuario.
 
 ### Casas (Homes)
 
@@ -358,12 +432,13 @@ Users
 - Qualquer **membro** pode: visualizar dados da casa, criar despesas, vincular sua carteira.
 - Um usuario so pode acessar casas das quais e membro.
 
-### Salario recorrente
+### Lancamentos recorrentes
 
-- O campo `DayOfMonth` define o dia do mes que o salario deve ser creditado.
-- Um `BackgroundService` roda a cada hora e verifica se ha salarios pendentes para o dia atual.
-- Ao processar, o saldo da carteira e incrementado e o campo `LastProcessedAt` e atualizado.
-- Um salario so e processado uma unica vez por mes.
+- Generalizam o antigo modelo de "salario" e o de "despesas recorrentes" em uma unica entidade: cada `RecurrentEntry` e vinculada a uma carteira (`WalletId`) e tem um `Type` (Credit/Debit) e um `Kind` ([EntryKind](#entrykind)), podendo representar tanto receita (`Entrada`) quanto qualquer tipo de despesa fixa (aluguel, assinatura, etc.).
+- O campo `DayOfMonth` define o dia do mes em que o lancamento deve ser processado.
+- Um `BackgroundService` roda a cada hora e verifica se ha lancamentos recorrentes pendentes para o dia atual, considerando tanto receitas quanto despesas.
+- Ao processar, um `Entry` correspondente e criado com o mesmo `Type`/`Kind`/`Category`, o saldo da carteira e atualizado e o campo `LastProcessedAt` e atualizado.
+- Um lancamento recorrente so e processado uma unica vez por mes.
 
 ### Saldo da carteira
 
@@ -372,7 +447,8 @@ Users
   - Criar lancamento de debito: saldo diminui.
   - Atualizar lancamento: efeito antigo e revertido, novo efeito aplicado.
   - Remover lancamento: efeito e revertido.
-  - Processamento de salario: saldo aumenta.
+  - Processamento de lancamento recorrente: saldo e atualizado conforme o `Kind` (credita se `Entrada`, debita nos demais casos).
+- O saldo diario historico (`GET /api/wallet/{id}/balances`) e calculado em tempo real a partir de todos os lancamentos da carteira (soma cumulativa por dia), sem depender de um snapshot salvo.
 
 ### Alerta de orcamento 50/30/20
 
