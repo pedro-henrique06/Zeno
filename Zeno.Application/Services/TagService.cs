@@ -12,15 +12,18 @@ public class TagService : ITagService
     private readonly IValidator<CreateTagRequest> _createValidator;
     private readonly IValidator<UpdateTagRequest> _updateValidator;
     private readonly ITagRepository _tagRepository;
+    private readonly IEntryRepository _entryRepository;
 
     public TagService(
         IValidator<CreateTagRequest> createValidator,
         IValidator<UpdateTagRequest> updateValidator,
-        ITagRepository tagRepository)
+        ITagRepository tagRepository,
+        IEntryRepository entryRepository)
     {
         _createValidator = createValidator;
         _updateValidator = updateValidator;
         _tagRepository = tagRepository;
+        _entryRepository = entryRepository;
     }
 
     public async Task<IEnumerable<TagEntity>> GetAllAsync(Guid userId)
@@ -81,5 +84,6 @@ public class TagService : ITagService
                 }));
 
         await _tagRepository.DeleteAsync(id);
+        await _entryRepository.ClearTagReferencesAsync(id);
     }
 }

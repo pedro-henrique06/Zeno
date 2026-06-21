@@ -1,5 +1,6 @@
 using MongoDB.Driver;
 using Zeno.Domain.Entry;
+using Zeno.Domain.Enum;
 using Zeno.Domain.Interfaces;
 using Zeno.Infrastructure.SQL.Context;
 
@@ -56,6 +57,17 @@ public class EntryRepository : IEntryRepository
             .ToListAsync();
     }
 
+    public async Task<decimal> GetSignedBalanceBeforeAsync(Guid userId, DateTime before)
+    {
+        var result = await _context.Entries
+            .Aggregate()
+            .Match(x => x.UserId == userId && x.Date < before)
+            .Group(x => 1, g => new { Sum = g.Sum(e => e.Kind == EntryKind.Entrada ? e.Value : -e.Value) })
+            .FirstOrDefaultAsync();
+
+        return result?.Sum ?? 0m;
+    }
+
     public async Task<Entry> CreateAsync(Entry entry)
     {
         await _context.Entries.InsertOneAsync(entry);
@@ -73,5 +85,12 @@ public class EntryRepository : IEntryRepository
     {
         var filter = Builders<Entry>.Filter.Eq(x => x.Id, id);
         await _context.Entries.DeleteOneAsync(filter);
+    }
+
+    public async Task ClearTagReferencesAsync(Guid tagId)
+    {
+        var filter = Builders<Entry>.Filter.Eq(x => x.TagId, tagId);
+        var update = Builders<Entry>.Update.Set(x => x.TagId, null);
+        await _context.Entries.UpdateManyAsync(filter, update);
     }
 }

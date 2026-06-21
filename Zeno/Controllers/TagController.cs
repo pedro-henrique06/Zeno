@@ -37,23 +37,26 @@ public class TagController : AppControllerBase
     public async Task<IActionResult> Create([FromBody] CreateTagRequest request)
     {
         var userId = GetUserId();
-        var data = await _service.CreateAsync(userId, request);
-        return CreatedAtAction(nameof(GetById), new { id = data.Id }, ApiResponse<Tag>.Ok(data));
+        return await HandleAsync(
+            () => _service.CreateAsync(userId, request),
+            data => CreatedAtAction(nameof(GetById), new { id = data.Id }, ApiResponse<Tag>.Ok(data)));
     }
 
     [HttpPut]
     public async Task<IActionResult> Update([FromBody] UpdateTagRequest request)
     {
         var userId = GetUserId();
-        await _service.UpdateAsync(userId, request);
-        return NoContent();
+        return await HandleAsync(
+            () => _service.UpdateAsync(userId, request),
+            NoContent());
     }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
     {
         var userId = GetUserId();
-        await _service.DeleteAsync(userId, id);
-        return NoContent();
+        return await HandleAsync(
+            () => _service.DeleteAsync(userId, id),
+            NoContent());
     }
 }

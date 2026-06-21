@@ -30,23 +30,26 @@ public class EntryController : AppControllerBase
     public async Task<IActionResult> Create([FromBody] CreateEntryRequest request)
     {
         var userId = GetUserId();
-        var data = await _entryService.CreateEntry(userId, request);
-        return CreatedAtAction(nameof(GetByMonth), new { id = data.Id }, ApiResponse<Entry>.Ok(data));
+        return await HandleAsync(
+            () => _entryService.CreateEntry(userId, request),
+            data => CreatedAtAction(nameof(GetByMonth), new { id = data.Id }, ApiResponse<Entry>.Ok(data)));
     }
 
     [HttpPut]
     public async Task<IActionResult> Update([FromBody] UpdateEntryRequest request)
     {
         var userId = GetUserId();
-        await _entryService.UpdateEntry(userId, request);
-        return NoContent();
+        return await HandleAsync(
+            () => _entryService.UpdateEntry(userId, request),
+            NoContent());
     }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
     {
         var userId = GetUserId();
-        await _entryService.DeleteEntry(userId, new DeleteEntryRequest { Id = id });
-        return NoContent();
+        return await HandleAsync(
+            () => _entryService.DeleteEntry(userId, new DeleteEntryRequest { Id = id }),
+            NoContent());
     }
 }

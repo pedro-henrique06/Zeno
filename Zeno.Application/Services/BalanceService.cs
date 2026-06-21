@@ -26,8 +26,7 @@ public class BalanceService : IBalanceService
         var monthEnd = monthStart.AddMonths(1);
         var today = DateTime.UtcNow.Date;
 
-        var priorEntries = await _entryRepository.GetByUserInRangeAsync(userId, null, monthStart);
-        var balance = priorEntries.Sum(SignedValue);
+        var balance = await _entryRepository.GetSignedBalanceBeforeAsync(userId, monthStart);
 
         var monthEntries = await _entryRepository.GetByUserInRangeAsync(userId, monthStart, monthEnd);
         var entriesByDay = monthEntries.GroupBy(e => e.Date.Date).ToDictionary(g => g.Key, g => g.ToList());
@@ -72,10 +71,4 @@ public class BalanceService : IBalanceService
 
         return new BalancesResponse { Month = month, Year = year, Days = days };
     }
-
-    private static decimal SignedValue(Entry entry) => entry.Kind switch
-    {
-        EntryKind.Entrada => entry.Value,
-        _ => -entry.Value
-    };
 }

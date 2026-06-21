@@ -156,6 +156,12 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var mongoContext = scope.ServiceProvider.GetRequiredService<Zeno.Infrastructure.SQL.Context.ZenoMongoContext>();
+    await mongoContext.CreateIndexesAsync();
+}
+
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {

@@ -16,7 +16,7 @@ public class EntryService : IEntryService
     private readonly IValidator<DeleteEntryRequest> _deleteValidator;
     private readonly IValidator<GetEntriesByMonthQuery> _getEntriesValidator;
     private readonly IEntryRepository _entryRepository;
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly ITagRepository _tagRepository;
 
     public EntryService(
         IValidator<CreateEntryRequest> createValidator,
@@ -24,14 +24,28 @@ public class EntryService : IEntryService
         IValidator<DeleteEntryRequest> deleteValidator,
         IValidator<GetEntriesByMonthQuery> getEntriesValidator,
         IEntryRepository entryRepository,
-        IUnitOfWork unitOfWork)
+        ITagRepository tagRepository)
     {
         _createValidator = createValidator;
         _updateValidator = updateValidator;
         _deleteValidator = deleteValidator;
         _getEntriesValidator = getEntriesValidator;
         _entryRepository = entryRepository;
-        _unitOfWork = unitOfWork;
+        _tagRepository = tagRepository;
+    }
+
+    private async Task EnsureTagOwnershipAsync(Guid userId, Guid? tagId, string propertyName)
+    {
+        if (tagId is null)
+            return;
+
+        var tag = await _tagRepository.GetByIdAsync(tagId.Value);
+        if (tag is null || tag.UserId != userId)
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new(propertyName, "Tag não encontrada.")
+                }));
     }
 
     public async Task<PagedResponse<Entry>> GetEntriesByMonth(Guid userId, GetEntriesByMonthQuery query)
@@ -65,6 +79,8 @@ public class EntryService : IEntryService
         if (!validation.IsValid)
             throw new AppValidationException(validation);
 
+        await EnsureTagOwnershipAsync(userId, request.TagId, nameof(request.TagId));
+
         var entry = new Entry
         {
             Id = Guid.NewGuid(),
@@ -95,6 +111,8 @@ public class EntryService : IEntryService
                 {
                     new(nameof(request.Id), "Lançamento não encontrado.")
                 }));
+
+        await EnsureTagOwnershipAsync(userId, request.TagId, nameof(request.TagId));
 
         var updatedEntry = new Entry
         {
