@@ -29,7 +29,7 @@ public class EntryRepository : IEntryRepository
     {
         const string sql = @"SELECT id, title, value, type, kind, description, category, date, walletid
                              FROM entries
-                             WHERE EXTRACT(MONTH FROM date) = @Month AND EXTRACT(YEAR FROM date) = @Year AND walletid = @WalletId
+                             WHERE MONTH(date) = @Month AND YEAR(date) = @Year AND walletid = @WalletId
                              ORDER BY date DESC";
 
         var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { Month = month, Year = year, WalletId = walletId });
@@ -41,7 +41,7 @@ public class EntryRepository : IEntryRepository
     {
         var offset = (page - 1) * pageSize;
 
-        var whereClause = @"WHERE EXTRACT(MONTH FROM date) = @Month AND EXTRACT(YEAR FROM date) = @Year AND walletid = @WalletId";
+        var whereClause = @"WHERE MONTH(date) = @Month AND YEAR(date) = @Year AND walletid = @WalletId";
         if (type.HasValue)
             whereClause += " AND type = @Type";
         if (category.HasValue)
@@ -80,15 +80,15 @@ public class EntryRepository : IEntryRepository
                                   FROM entries e
                                   INNER JOIN wallets w ON e.walletid = w.id
                                   WHERE w.userid = @UserId
-                                  AND EXTRACT(MONTH FROM e.date) = @Month AND EXTRACT(YEAR FROM e.date) = @Year";
+                                  AND MONTH(e.date) = @Month AND YEAR(e.date) = @Year";
 
         const string dataSql = @"SELECT e.id, e.title, e.value, e.type, e.kind, e.description, e.category, e.date, e.walletid
                                  FROM entries e
                                  INNER JOIN wallets w ON e.walletid = w.id
                                  WHERE w.userid = @UserId
-                                 AND EXTRACT(MONTH FROM e.date) = @Month AND EXTRACT(YEAR FROM e.date) = @Year
+                                 AND MONTH(e.date) = @Month AND YEAR(e.date) = @Year
                                  ORDER BY e.date DESC
-                                 OFFSET @Offset LIMIT @PageSize";
+                                 LIMIT @PageSize OFFSET @Offset";
 
         using var multi = await _context.Connection.QueryMultipleAsync(countSql + ";" + dataSql, new
         {
@@ -157,7 +157,7 @@ public class EntryRepository : IEntryRepository
         const string sql = @"SELECT COALESCE(SUM(value), 0)
                              FROM entries
                              WHERE walletid = @WalletId AND kind = @Kind
-                             AND EXTRACT(MONTH FROM date) = @Month AND EXTRACT(YEAR FROM date) = @Year";
+                             AND MONTH(date) = @Month AND YEAR(date) = @Year";
 
         return await _context.Connection.ExecuteScalarAsync<decimal>(sql, new { WalletId = walletId, Kind = (int)kind, Month = month, Year = year });
     }
@@ -166,8 +166,8 @@ public class EntryRepository : IEntryRepository
     {
         var sql = @"SELECT COALESCE(SUM(value), 0)
                     FROM entries
-                    WHERE EXTRACT(MONTH FROM date) = @Month
-                      AND EXTRACT(YEAR FROM date) = @Year
+                    WHERE MONTH(date) = @Month
+                      AND YEAR(date) = @Year
                       AND walletid = @WalletId
                       AND type = @Type";
 
@@ -178,8 +178,8 @@ public class EntryRepository : IEntryRepository
     {
         var sql = @"SELECT category, COALESCE(SUM(value), 0) as total
                     FROM entries
-                    WHERE EXTRACT(MONTH FROM date) = @Month
-                      AND EXTRACT(YEAR FROM date) = @Year
+                    WHERE MONTH(date) = @Month
+                      AND YEAR(date) = @Year
                       AND walletid = @WalletId
                       AND type = 1
                     GROUP BY category

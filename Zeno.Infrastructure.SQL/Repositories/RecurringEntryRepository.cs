@@ -17,7 +17,7 @@ public class RecurringEntryRepository : IRecurringEntryRepository
 
     public async Task<RecurringEntry?> GetByIdAsync(Guid id)
     {
-        const string sql = @"SELECT id, userid, walletid, title, value, type, kind, category, dayofmonth, active, createdat, lastprocessedat
+        const string sql = @"SELECT id, userid, walletid, title, value, type, kind, category, dayofmonth, isactive, createdat, lastprocessedat
                              FROM recurrententries WHERE id = @Id";
         var row = await _context.Connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { Id = id });
         return row is null ? null : MapToRecurringEntry(row);
@@ -25,7 +25,7 @@ public class RecurringEntryRepository : IRecurringEntryRepository
 
     public async Task<RecurringEntry?> GetByIdAndUserAsync(Guid id, Guid userId)
     {
-        const string sql = @"SELECT id, userid, walletid, title, value, type, kind, category, dayofmonth, active, createdat, lastprocessedat
+        const string sql = @"SELECT id, userid, walletid, title, value, type, kind, category, dayofmonth, isactive, createdat, lastprocessedat
                              FROM recurrententries
                              WHERE id = @Id AND userid = @UserId";
         var row = await _context.Connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { Id = id, UserId = userId });
@@ -34,7 +34,7 @@ public class RecurringEntryRepository : IRecurringEntryRepository
 
     public async Task<IEnumerable<RecurringEntry>> GetByUserAsync(Guid userId)
     {
-        const string sql = @"SELECT id, userid, walletid, title, value, type, kind, category, dayofmonth, active, createdat, lastprocessedat
+        const string sql = @"SELECT id, userid, walletid, title, value, type, kind, category, dayofmonth, isactive, createdat, lastprocessedat
                              FROM recurrententries
                              WHERE userid = @UserId
                              ORDER BY dayofmonth";
@@ -44,7 +44,7 @@ public class RecurringEntryRepository : IRecurringEntryRepository
 
     public async Task<IEnumerable<RecurringEntry>> GetByWalletAsync(Guid walletId)
     {
-        const string sql = @"SELECT id, userid, walletid, title, value, type, kind, category, dayofmonth, active, createdat, lastprocessedat
+        const string sql = @"SELECT id, userid, walletid, title, value, type, kind, category, dayofmonth, isactive, createdat, lastprocessedat
                              FROM recurrententries
                              WHERE walletid = @WalletId
                              ORDER BY dayofmonth";
@@ -54,17 +54,17 @@ public class RecurringEntryRepository : IRecurringEntryRepository
 
     public async Task<IEnumerable<RecurringEntry>> GetActiveByDayAsync(int dayOfMonth)
     {
-        const string sql = @"SELECT id, userid, walletid, title, value, type, kind, category, dayofmonth, active, createdat, lastprocessedat
+        const string sql = @"SELECT id, userid, walletid, title, value, type, kind, category, dayofmonth, isactive, createdat, lastprocessedat
                              FROM recurrententries
-                             WHERE active = true AND dayofmonth = @DayOfMonth";
+                             WHERE isactive = 1 AND dayofmonth = @DayOfMonth";
         var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { DayOfMonth = dayOfMonth });
         return rows.Select(r => MapToRecurringEntry(r)).Cast<RecurringEntry>();
     }
 
     public async Task<RecurringEntry> CreateAsync(RecurringEntry entry)
     {
-        const string sql = @"INSERT INTO recurrententries (id, userid, walletid, title, value, type, kind, category, dayofmonth, active, createdat, lastprocessedat)
-                             VALUES (@Id, @UserId, @WalletId, @Title, @Value, @Type, @Kind, @Category, @DayOfMonth, @Active, @CreatedAt, @LastProcessedAt)";
+        const string sql = @"INSERT INTO recurrententries (id, userid, walletid, title, value, type, kind, category, dayofmonth, isactive, createdat, lastprocessedat)
+                             VALUES (@Id, @UserId, @WalletId, @Title, @Value, @Type, @Kind, @Category, @DayOfMonth, @IsActive, @CreatedAt, @LastProcessedAt)";
         await _context.Connection.ExecuteAsync(sql, new
         {
             entry.Id,
@@ -76,7 +76,7 @@ public class RecurringEntryRepository : IRecurringEntryRepository
             Kind = (int)entry.Kind,
             Category = (int)entry.Category,
             entry.DayOfMonth,
-            Active = entry.IsActive,
+            IsActive = entry.IsActive,
             entry.CreatedAt,
             entry.LastProcessedAt
         });
@@ -87,7 +87,7 @@ public class RecurringEntryRepository : IRecurringEntryRepository
     {
         const string sql = @"UPDATE recurrententries
                              SET title = @Title, value = @Value, type = @Type, kind = @Kind, category = @Category,
-                                 dayofmonth = @DayOfMonth, active = @Active, lastprocessedat = @LastProcessedAt
+                                 dayofmonth = @DayOfMonth, isactive = @IsActive, lastprocessedat = @LastProcessedAt
                              WHERE id = @Id";
         await _context.Connection.ExecuteAsync(sql, new
         {
@@ -98,7 +98,7 @@ public class RecurringEntryRepository : IRecurringEntryRepository
             Kind = (int)entry.Kind,
             Category = (int)entry.Category,
             entry.DayOfMonth,
-            Active = entry.IsActive,
+            IsActive = entry.IsActive,
             entry.LastProcessedAt
         });
         return entry;
@@ -123,7 +123,7 @@ public class RecurringEntryRepository : IRecurringEntryRepository
             Kind = (EntryKind)(int)row.kind,
             Category = (Category)(int)row.category,
             DayOfMonth = row.dayofmonth,
-            IsActive = row.active,
+            IsActive = row.isactive,
             CreatedAt = row.createdat,
             LastProcessedAt = row.lastprocessedat
         };

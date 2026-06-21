@@ -1,16 +1,18 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: zeno_postgres
+  mysql:
+    image: mysql:8.0
+    container_name: zeno_mysql
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: ZenoDb
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: zeno_db
+      MYSQL_USER: zeno_user
+      MYSQL_PASSWORD: zeno_password
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql_data:/var/lib/mysql
+      - ./docker/init-mysql.sql:/docker-entrypoint-initdb.d/init.sql
+    command: --default-authentication-plugin=mysql_native_password
 
 volumes:
-  postgres_data:
+  mysql_data:

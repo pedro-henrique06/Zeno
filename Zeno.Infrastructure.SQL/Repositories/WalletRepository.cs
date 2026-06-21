@@ -64,8 +64,8 @@ public class WalletRepository : IWalletRepository
                     FROM entries e
                     INNER JOIN wallets w ON e.walletid = w.id
                     WHERE w.userid = @UserId
-                      AND EXTRACT(MONTH FROM e.date) = @Month
-                      AND EXTRACT(YEAR FROM e.date) = @Year
+                      AND MONTH(e.date) = @Month
+                      AND YEAR(e.date) = @Year
                       AND e.type = 0";
 
         return await _context.Connection.ExecuteScalarAsync<decimal>(sql, new { UserId = userId, Month = month, Year = year });

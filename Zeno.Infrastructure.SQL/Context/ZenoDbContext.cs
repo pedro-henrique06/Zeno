@@ -1,26 +1,26 @@
 using System.Data;
-using Npgsql;
+using MySqlConnector;
 
 namespace Zeno.Infrastructure.SQL.Context;
 
 public class ZenoDbContext
 {
     private readonly string _connectionString;
-    private NpgsqlConnection? _connection;
-    private NpgsqlTransaction? _transaction;
+    private MySqlConnection? _connection;
+    private MySqlTransaction? _transaction;
 
     public ZenoDbContext(string connectionString)
     {
         _connectionString = connectionString;
     }
 
-    public NpgsqlConnection Connection
+    public MySqlConnection Connection
     {
         get
         {
             if (_connection is null || _connection.State == System.Data.ConnectionState.Closed)
             {
-                _connection = new NpgsqlConnection(_connectionString);
+                _connection = new MySqlConnection(_connectionString);
             }
 
             return _connection;
@@ -33,7 +33,7 @@ public class ZenoDbContext
     {
         if (_connection is null || _connection.State == System.Data.ConnectionState.Closed)
         {
-            _connection = new NpgsqlConnection(_connectionString);
+            _connection = new MySqlConnection(_connectionString);
         }
         if (_connection.State == System.Data.ConnectionState.Closed)
         {

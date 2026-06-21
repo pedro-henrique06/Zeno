@@ -70,7 +70,7 @@ builder.Services.AddSingleton<ITokenBlacklistService, TokenBlacklistService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddHostedService<RecurringEntryHostedService>();
 builder.Services.AddHealthChecks()
-    .AddNpgSql(builder.Configuration["Database:ConnectionString"]!, name: "postgresql", tags: new[] { "db", "postgres" });
+    .AddMySql(builder.Configuration["Database:ConnectionString"]!, name: "mysql", tags: new[] { "db", "mysql" });
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);

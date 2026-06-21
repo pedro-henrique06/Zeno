@@ -67,7 +67,7 @@ public class HomeRepository : IHomeRepository
 
     public async Task AddWalletAsync(Guid homeId, Guid walletId)
     {
-        const string sql = @"INSERT INTO home_wallets (homeid, walletid) VALUES (@HomeId, @WalletId) ON CONFLICT DO NOTHING";
+        const string sql = @"INSERT IGNORE INTO home_wallets (homeid, walletid) VALUES (@HomeId, @WalletId)";
         await _context.Connection.ExecuteAsync(sql, new { HomeId = homeId, WalletId = walletId });
     }
 
@@ -222,13 +222,13 @@ public class HomeRepository : IHomeRepository
         const string sql = @"SELECT id, title, value, type, description, category, date, walletid
                              FROM entries
                              WHERE walletid IN @WalletIds AND type = 0
-                             AND EXTRACT(MONTH FROM date) = @Month AND EXTRACT(YEAR FROM date) = @Year";
+                             AND MONTH(date) = @Month AND YEAR(date) = @Year";
         return await _context.Connection.QueryAsync<Entry>(sql, new { WalletIds = walletIds, Month = month, Year = year });
     }
 
     public async Task AddMemberAsync(Guid homeId, Guid userId, int role)
     {
-        const string sql = @"INSERT INTO homemembers (homeid, userid, role, joinedat) VALUES (@HomeId, @UserId, @Role, @JoinedAt) ON CONFLICT DO NOTHING";
+        const string sql = @"INSERT IGNORE INTO homemembers (homeid, userid, role, joinedat) VALUES (@HomeId, @UserId, @Role, @JoinedAt)";
         await _context.Connection.ExecuteAsync(sql, new { HomeId = homeId, UserId = userId, Role = role, JoinedAt = DateTime.UtcNow });
     }
 
@@ -307,7 +307,7 @@ public class HomeRepository : IHomeRepository
     {
         const string sql = @"SELECT walletid, SUM(value) as total_amount
                              FROM recurrententries
-                             WHERE walletid IN @WalletIds AND active = true AND kind = 0
+                             WHERE walletid IN @WalletIds AND isactive = 1 AND kind = 0
                              GROUP BY walletid";
         var salaries = await _context.Connection.QueryAsync<(Guid WalletId, decimal TotalAmount)>(sql, new { WalletIds = walletIds });
         return salaries.ToDictionary(s => s.WalletId, s => s.TotalAmount);
