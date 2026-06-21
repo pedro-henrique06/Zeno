@@ -1,3 +1,6 @@
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Serializers;
 using MongoDB.Driver;
 using Zeno.Domain.User;
 using Zeno.Domain.Wallet;
@@ -15,6 +18,11 @@ public class ZenoMongoContext
 {
     private readonly IMongoDatabase _database;
     private readonly IMongoClient _client;
+
+    static ZenoMongoContext()
+    {
+        BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
+    }
 
     public ZenoMongoContext(string connectionString, string databaseName = "zeno_db")
     {
