@@ -1,32 +1,24 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
 using Zeno.Domain.Enum;
 
-namespace Zeno.Domain.Entry
+namespace Zeno.Domain.Entry;
+
+public class Entry
 {
-    public class Entry
-    {
-        public Guid Id { get; set; }
+    public Guid Id { get; set; }
 
-        public string Title { get; set; } = string.Empty;
+    public Guid UserId { get; set; }
 
-        public decimal Value { get; set; }
+    public string Title { get; set; } = string.Empty;
 
-        public EntryType Type  { get; set; }
+    public decimal Value { get; set; }
 
-        public EntryKind Kind { get; set; }
+    public EntryKind Kind { get; set; }
 
-        public string Description { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
 
-        public Category Category { get; set; }
+    public Guid? TagId { get; set; }
 
-        public Guid? CategoryId { get; set; }
+    public DateTime Date { get; set; } = DateTime.UtcNow;
 
-        public DateTime Date { get; set; } = DateTime.UtcNow;
-
-        public Guid? WalletId { get; set; }
-
-        public Entry() { }
-    }
+    public Entry() { }
 }

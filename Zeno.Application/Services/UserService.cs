@@ -82,6 +82,28 @@ public class UserService : IUserService
         await _userRepository.UpdatePasswordAsync(userId, newHash);
     }
 
+    public async Task<UserProfileResponse> UpdateDailyBudget(Guid userId, UpdateDailyBudgetRequest request)
+    {
+        var user = await _userRepository.GetByIdAsync(userId)
+            ?? throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new("UserId", "Usuário não encontrado.")
+                }));
+
+        if (request.DailyBudget < 0)
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new("DailyBudget", "A previsão de diário não pode ser negativa.")
+                }));
+
+        user.DailyBudget = request.DailyBudget;
+        await _userRepository.UpdateProfileAsync(user);
+
+        return ToResponse(user);
+    }
+
     private static UserProfileResponse ToResponse(Zeno.Domain.User.User user)
     {
         return new UserProfileResponse
@@ -93,7 +115,8 @@ public class UserService : IUserService
             Document = user.Document,
             BirthDate = user.BirthDate,
             OAuthProvider = user.Provider.ToString(),
-            HasPassword = !string.IsNullOrEmpty(user.PasswordHash)
+            HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
+            DailyBudget = user.DailyBudget
         };
     }
 

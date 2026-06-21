@@ -4,9 +4,7 @@ using Zeno.Application.Interfaces;
 using Zeno.Application.Requests;
 using Zeno.Application.Requests.Entries;
 using Zeno.Application.Responses.Common;
-using Zeno.Application.Validators;
 using Zeno.Domain.Entry;
-using Zeno.Domain.Enum;
 using Zeno.Domain.Interfaces;
 
 namespace Zeno.Application.Services;
@@ -18,8 +16,7 @@ public class EntryService : IEntryService
     private readonly IValidator<DeleteEntryRequest> _deleteValidator;
     private readonly IValidator<GetEntriesByMonthQuery> _getEntriesValidator;
     private readonly IEntryRepository _entryRepository;
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly ICategoryRuleService _categoryRuleService;
+    private readonly ITagRepository _tagRepository;
 
     public EntryService(
         IValidator<CreateEntryRequest> createValidator,
@@ -27,16 +24,28 @@ public class EntryService : IEntryService
         IValidator<DeleteEntryRequest> deleteValidator,
         IValidator<GetEntriesByMonthQuery> getEntriesValidator,
         IEntryRepository entryRepository,
-        IUnitOfWork unitOfWork,
-        ICategoryRuleService categoryRuleService)
+        ITagRepository tagRepository)
     {
         _createValidator = createValidator;
         _updateValidator = updateValidator;
         _deleteValidator = deleteValidator;
         _getEntriesValidator = getEntriesValidator;
         _entryRepository = entryRepository;
-        _unitOfWork = unitOfWork;
-        _categoryRuleService = categoryRuleService;
+        _tagRepository = tagRepository;
+    }
+
+    private async Task EnsureTagOwnershipAsync(Guid userId, Guid? tagId, string propertyName)
+    {
+        if (tagId is null)
+            return;
+
+        var tag = await _tagRepository.GetByIdAsync(tagId.Value);
+        if (tag is null || tag.UserId != userId)
+            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new(propertyName, "Tag não encontrada.")
+                }));
     }
 
     public async Task<PagedResponse<Entry>> GetEntriesByMonth(Guid userId, GetEntriesByMonthQuery query)
@@ -70,26 +79,18 @@ public class EntryService : IEntryService
         if (!validation.IsValid)
             throw new AppValidationException(validation);
 
-        Guid? categoryId = request.CategoryId;
-        if (!categoryId.HasValue && request.Category == Category.None && !string.IsNullOrWhiteSpace(request.Description))
-        {
-            var matchedCategory = await _categoryRuleService.ApplyRuleAsync(userId, request.Description);
-            if (matchedCategory is not null)
-                categoryId = matchedCategory.Id;
-        }
+        await EnsureTagOwnershipAsync(userId, request.TagId, nameof(request.TagId));
 
         var entry = new Entry
         {
             Id = Guid.NewGuid(),
+            UserId = userId,
             Title = request.Title,
             Value = request.Value,
-            Type = request.Type,
             Kind = request.Kind,
             Description = request.Description ?? string.Empty,
-            Category = request.Category,
-            CategoryId = categoryId,
-            Date = request.Date,
-            WalletId = request.WalletId
+            TagId = request.TagId,
+            Date = request.Date
         };
 
         await _entryRepository.CreateAsync(entry);
@@ -104,25 +105,25 @@ public class EntryService : IEntryService
             throw new AppValidationException(validation);
 
         var existing = await _entryRepository.GetByIdAsync(request.Id);
-        if (existing is null)
+        if (existing is null || existing.UserId != userId)
             throw new AppValidationException(new FluentValidation.Results.ValidationResult(
                 new List<FluentValidation.Results.ValidationFailure>
                 {
                     new(nameof(request.Id), "Lançamento não encontrado.")
                 }));
 
+        await EnsureTagOwnershipAsync(userId, request.TagId, nameof(request.TagId));
+
         var updatedEntry = new Entry
         {
             Id = request.Id,
+            UserId = userId,
             Title = request.Title,
             Value = request.Value,
-            Type = request.Type,
             Kind = request.Kind,
             Description = request.Description ?? string.Empty,
-            Category = request.Category,
-            CategoryId = request.CategoryId,
-            Date = request.Date,
-            WalletId = request.WalletId
+            TagId = request.TagId,
+            Date = request.Date
         };
 
         await _entryRepository.UpdateAsync(updatedEntry);
@@ -136,7 +137,7 @@ public class EntryService : IEntryService
             throw new AppValidationException(validation);
 
         var existing = await _entryRepository.GetByIdAsync(request.Id);
-        if (existing is null)
+        if (existing is null || existing.UserId != userId)
             throw new AppValidationException(new FluentValidation.Results.ValidationResult(
                 new List<FluentValidation.Results.ValidationFailure>
                 {

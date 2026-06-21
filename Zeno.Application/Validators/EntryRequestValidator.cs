@@ -14,17 +14,8 @@ public class CreateEntryRequestValidator : AbstractValidator<CreateEntryRequest>
         RuleFor(x => x.Value)
             .GreaterThan(0).WithMessage("O valor deve ser maior que zero.");
 
-        RuleFor(x => x.Type)
-            .IsInEnum().WithMessage("O tipo de entrada é inválido.");
-
         RuleFor(x => x.Kind)
             .IsInEnum().WithMessage("O tipo de lançamento é inválido.");
-
-        RuleFor(x => x.Category)
-            .IsInEnum().WithMessage("A categoria é inválida.");
-
-        RuleFor(x => x.WalletId)
-            .NotEmpty().WithMessage("A carteira é obrigatória.");
     }
 }
 
@@ -42,17 +33,8 @@ public class UpdateEntryRequestValidator : AbstractValidator<UpdateEntryRequest>
         RuleFor(x => x.Value)
             .GreaterThan(0).WithMessage("O valor deve ser maior que zero.");
 
-        RuleFor(x => x.Type)
-            .IsInEnum().WithMessage("O tipo de entrada é inválido.");
-
         RuleFor(x => x.Kind)
             .IsInEnum().WithMessage("O tipo de lançamento é inválido.");
-
-        RuleFor(x => x.Category)
-            .IsInEnum().WithMessage("A categoria é inválida.");
-
-        RuleFor(x => x.WalletId)
-            .NotEmpty().WithMessage("A carteira é obrigatória.");
     }
 }
 

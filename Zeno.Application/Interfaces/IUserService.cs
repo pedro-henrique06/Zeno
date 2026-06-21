@@ -8,4 +8,5 @@ public interface IUserService
     Task<UserProfileResponse> GetProfile(Guid userId);
     Task<UserProfileResponse> UpdateProfile(Guid userId, UpdateProfileRequest request);
     Task ChangePassword(Guid userId, ChangePasswordRequest request);
+    Task<UserProfileResponse> UpdateDailyBudget(Guid userId, UpdateDailyBudgetRequest request);
 }
