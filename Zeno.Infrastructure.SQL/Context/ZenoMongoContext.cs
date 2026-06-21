@@ -4,8 +4,8 @@ using MongoDB.Bson.Serialization.Serializers;
 using MongoDB.Driver;
 using Zeno.Domain.User;
 using Zeno.Domain.Entry;
-using Zeno.Domain.Tag;
 using Zeno.Domain.Auth;
+using Tag = Zeno.Domain.Tag.Tag;
 
 namespace Zeno.Infrastructure.SQL.Context;
 
