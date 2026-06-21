@@ -7,7 +7,6 @@ using Microsoft.OpenApi.Models;
 using Zeno.Application.Interfaces;
 using Zeno.Application.Services;
 using Zeno.Infrastructure.SQL.Extentions;
-using Zeno.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -88,26 +87,16 @@ builder.Services.AddValidatorsFromAssemblyContaining<Zeno.Application.Validators
 var connStr = builder.Configuration["Database:ConnectionString"]!;
 builder.Services.AddInfrastructureSQL(connStr, builder.Configuration["Encryption:Key"]!);
 builder.Services.AddScoped<IEntryService, EntryService>();
-builder.Services.AddScoped<IWalletService, WalletService>();
-builder.Services.AddScoped<IAccountService, AccountService>();
-builder.Services.AddScoped<IHomeService, HomeService>();
-builder.Services.AddScoped<IHomeMemberService, HomeMemberService>();
-builder.Services.AddScoped<IHomeExpenseService, HomeExpenseService>();
-builder.Services.AddScoped<IHomeSplitService, HomeSplitService>();
-builder.Services.AddScoped<IHomeBudgetService, HomeBudgetService>();
-builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IFinancialGoalService, FinancialGoalService>();
 builder.Services.AddScoped<IDebtService, DebtService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<ICategoryRuleService, CategoryRuleService>();
-builder.Services.AddScoped<IRecurringEntryService, RecurringEntryService>();
-builder.Services.AddScoped<IBalanceService, BalanceService>();
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IProjectionService, ProjectionService>();
+
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<ITokenBlacklistService, TokenBlacklistService>();
 builder.Services.AddMemoryCache();
-builder.Services.AddHostedService<RecurringEntryHostedService>();
+
 builder.Services.AddHealthChecks();
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");

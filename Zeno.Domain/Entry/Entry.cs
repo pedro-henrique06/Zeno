@@ -25,7 +25,7 @@ namespace Zeno.Domain.Entry
 
         public DateTime Date { get; set; } = DateTime.UtcNow;
 
-        public Guid WalletId { get; set; }
+        public Guid? WalletId { get; set; }
 
         public Entry() { }
     }

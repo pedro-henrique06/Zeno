@@ -18,7 +18,6 @@ public class EntryService : IEntryService
     private readonly IValidator<DeleteEntryRequest> _deleteValidator;
     private readonly IValidator<GetEntriesByMonthQuery> _getEntriesValidator;
     private readonly IEntryRepository _entryRepository;
-    private readonly IWalletRepository _walletRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICategoryRuleService _categoryRuleService;
 
@@ -28,7 +27,6 @@ public class EntryService : IEntryService
         IValidator<DeleteEntryRequest> deleteValidator,
         IValidator<GetEntriesByMonthQuery> getEntriesValidator,
         IEntryRepository entryRepository,
-        IWalletRepository walletRepository,
         IUnitOfWork unitOfWork,
         ICategoryRuleService categoryRuleService)
     {
@@ -37,7 +35,6 @@ public class EntryService : IEntryService
         _deleteValidator = deleteValidator;
         _getEntriesValidator = getEntriesValidator;
         _entryRepository = entryRepository;
-        _walletRepository = walletRepository;
         _unitOfWork = unitOfWork;
         _categoryRuleService = categoryRuleService;
     }
@@ -50,37 +47,12 @@ public class EntryService : IEntryService
 
         var pageSize = Math.Min(query.PageSize, 100);
 
-        IEnumerable<Entry> items;
-        int totalCount;
-
-        if (!query.WalletId.HasValue)
-        {
-            (items, totalCount) = await _entryRepository.GetByMonthForUserPagedAsync(
-                query.Month!.Value,
-                query.Year!.Value,
-                userId,
-                query.Page,
-                pageSize);
-        }
-        else
-        {
-            var wallet = await _walletRepository.GetByIdAndUserAsync(query.WalletId.Value, userId);
-            if (wallet is null)
-                throw new AppValidationException(new FluentValidation.Results.ValidationResult(
-                    new List<FluentValidation.Results.ValidationFailure>
-                    {
-                        new("WalletId", "Carteira não encontrada.")
-                    }));
-
-            (items, totalCount) = await _entryRepository.GetByMonthPagedAsync(
-                query.Month!.Value,
-                query.Year!.Value,
-                query.WalletId.Value,
-                query.Type,
-                query.Category,
-                query.Page,
-                pageSize);
-        }
+        (var items, int totalCount) = await _entryRepository.GetByMonthForUserPagedAsync(
+            query.Month!.Value,
+            query.Year!.Value,
+            userId,
+            query.Page,
+            pageSize);
 
         return new PagedResponse<Entry>
         {
@@ -97,14 +69,6 @@ public class EntryService : IEntryService
         var validation = await _createValidator.ValidateAsync(request);
         if (!validation.IsValid)
             throw new AppValidationException(validation);
-
-        var wallet = await _walletRepository.GetByIdAndUserAsync(request.WalletId, userId);
-        if (wallet is null)
-            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
-                new List<FluentValidation.Results.ValidationFailure>
-                {
-                    new("WalletId", "Carteira não encontrada.")
-                }));
 
         Guid? categoryId = request.CategoryId;
         if (!categoryId.HasValue && request.Category == Category.None && !string.IsNullOrWhiteSpace(request.Description))
@@ -128,19 +92,7 @@ public class EntryService : IEntryService
             WalletId = request.WalletId
         };
 
-        await _unitOfWork.BeginAsync();
-
-        try
-        {
-            await _entryRepository.CreateAsync(entry, _unitOfWork.Transaction);
-            await _walletRepository.AddBalanceAsync(request.WalletId, GetBalanceAmount(request.Type, request.Value), _unitOfWork.Transaction);
-            await _unitOfWork.CommitAsync();
-        }
-        catch
-        {
-            await _unitOfWork.RollbackAsync();
-            throw;
-        }
+        await _entryRepository.CreateAsync(entry);
 
         return entry;
     }
@@ -151,52 +103,30 @@ public class EntryService : IEntryService
         if (!validation.IsValid)
             throw new AppValidationException(validation);
 
-        var oldEntry = await _entryRepository.GetByIdAsync(request.Id);
-        if (oldEntry is null)
+        var existing = await _entryRepository.GetByIdAsync(request.Id);
+        if (existing is null)
             throw new AppValidationException(new FluentValidation.Results.ValidationResult(
                 new List<FluentValidation.Results.ValidationFailure>
                 {
                     new(nameof(request.Id), "Lançamento não encontrado.")
                 }));
 
-        var wallet = await _walletRepository.GetByIdAndUserAsync(oldEntry.WalletId, userId);
-        if (wallet is null)
-            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
-                new List<FluentValidation.Results.ValidationFailure>
-                {
-                    new("WalletId", "Carteira não encontrada.")
-                }));
-
-        await _unitOfWork.BeginAsync();
-
-        try
+        var updatedEntry = new Entry
         {
-            await _walletRepository.AddBalanceAsync(oldEntry.WalletId, GetReverseBalanceAmount(oldEntry.Type, oldEntry.Value), _unitOfWork.Transaction);
+            Id = request.Id,
+            Title = request.Title,
+            Value = request.Value,
+            Type = request.Type,
+            Kind = request.Kind,
+            Description = request.Description ?? string.Empty,
+            Category = request.Category,
+            CategoryId = request.CategoryId,
+            Date = request.Date,
+            WalletId = request.WalletId
+        };
 
-            var updatedEntry = new Entry
-            {
-                Id = request.Id,
-                Title = request.Title,
-                Value = request.Value,
-                Type = request.Type,
-                Kind = request.Kind,
-                Description = request.Description ?? string.Empty,
-                Category = request.Category,
-                Date = request.Date,
-                WalletId = request.WalletId
-            };
-
-            await _entryRepository.UpdateAsync(updatedEntry, _unitOfWork.Transaction);
-            await _walletRepository.AddBalanceAsync(request.WalletId, GetBalanceAmount(request.Type, request.Value), _unitOfWork.Transaction);
-
-            await _unitOfWork.CommitAsync();
-            return updatedEntry;
-        }
-        catch
-        {
-            await _unitOfWork.RollbackAsync();
-            throw;
-        }
+        await _entryRepository.UpdateAsync(updatedEntry);
+        return updatedEntry;
     }
 
     public async Task<Entry> DeleteEntry(Guid userId, DeleteEntryRequest request)
@@ -213,37 +143,7 @@ public class EntryService : IEntryService
                     new(nameof(request.Id), "Lançamento não encontrado.")
                 }));
 
-        var wallet = await _walletRepository.GetByIdAndUserAsync(existing.WalletId, userId);
-        if (wallet is null)
-            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
-                new List<FluentValidation.Results.ValidationFailure>
-                {
-                    new("WalletId", "Carteira não encontrada.")
-                }));
-
-        await _unitOfWork.BeginAsync();
-
-        try
-        {
-            await _walletRepository.AddBalanceAsync(existing.WalletId, GetReverseBalanceAmount(existing.Type, existing.Value), _unitOfWork.Transaction);
-            await _entryRepository.DeleteAsync(request.Id, _unitOfWork.Transaction);
-            await _unitOfWork.CommitAsync();
-            return existing;
-        }
-        catch
-        {
-            await _unitOfWork.RollbackAsync();
-            throw;
-        }
-    }
-
-    private static decimal GetBalanceAmount(EntryType type, decimal value)
-    {
-        return type == EntryType.Credit ? value : -value;
-    }
-
-    private static decimal GetReverseBalanceAmount(EntryType type, decimal value)
-    {
-        return type == EntryType.Credit ? -value : value;
+        await _entryRepository.DeleteAsync(request.Id);
+        return existing;
     }
 }

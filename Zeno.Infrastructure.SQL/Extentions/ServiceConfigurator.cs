@@ -15,10 +15,6 @@ public static class ServiceConfigurator
         services.AddSingleton<ZenoMongoContext>(_ => new ZenoMongoContext(connectionString));
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IEntryRepository, EntryRepository>();
-        services.AddScoped<IWalletRepository, WalletRepository>();
-        services.AddScoped<IAccountRepository, AccountRepository>();
-        services.AddScoped<IHomeRepository, HomeRepository>();
-        services.AddScoped<IRecurringEntryRepository, RecurringEntryRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IFinancialGoalRepository, FinancialGoalRepository>();
         services.AddScoped<IDebtRepository, DebtRepository>();
