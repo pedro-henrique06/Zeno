@@ -10,4 +10,5 @@ public class UserProfileResponse
     public DateTime? BirthDate { get; set; }
     public string OAuthProvider { get; set; } = "None";
     public bool HasPassword { get; set; }
+    public decimal? DailyBudget { get; set; }
 }

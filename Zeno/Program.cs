@@ -87,10 +87,9 @@ builder.Services.AddValidatorsFromAssemblyContaining<Zeno.Application.Validators
 var connStr = builder.Configuration["Database:ConnectionString"]!;
 builder.Services.AddInfrastructureSQL(connStr, builder.Configuration["Encryption:Key"]!);
 builder.Services.AddScoped<IEntryService, EntryService>();
-builder.Services.AddScoped<IFinancialGoalService, FinancialGoalService>();
-builder.Services.AddScoped<IDebtService, DebtService>();
-builder.Services.AddScoped<ICategoryService, CategoryService>();
-builder.Services.AddScoped<ICategoryRuleService, CategoryRuleService>();
+builder.Services.AddScoped<ITagService, TagService>();
+builder.Services.AddScoped<IBalanceService, BalanceService>();
+builder.Services.AddScoped<ISummaryService, SummaryService>();
 builder.Services.AddScoped<IUserService, UserService>();
 
 builder.Services.AddScoped<IAuthService, AuthService>();

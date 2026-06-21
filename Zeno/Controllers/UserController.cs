@@ -35,4 +35,11 @@ public class UserController : AppControllerBase
         var userId = GetUserId();
         return HandleAsync(() => _userService.ChangePassword(userId, request), NoContent());
     }
+
+    [HttpPut("me/daily-budget")]
+    public Task<IActionResult> UpdateDailyBudget([FromBody] UpdateDailyBudgetRequest request)
+    {
+        var userId = GetUserId();
+        return HandleAsync(() => _userService.UpdateDailyBudget(userId, request), data => Ok(data));
+    }
 }

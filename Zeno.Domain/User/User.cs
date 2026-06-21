@@ -20,4 +20,5 @@ public class User
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
     public bool EmailVerified { get; set; } = false;
+    public decimal? DailyBudget { get; set; }
 }

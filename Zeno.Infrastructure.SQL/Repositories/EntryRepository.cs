@@ -25,7 +25,7 @@ public class EntryRepository : IEntryRepository
         var endDate = startDate.AddMonths(1);
 
         var builder = Builders<Entry>.Filter;
-        var filter = builder.Gte(x => x.Date, startDate) & builder.Lt(x => x.Date, endDate);
+        var filter = builder.Eq(x => x.UserId, userId) & builder.Gte(x => x.Date, startDate) & builder.Lt(x => x.Date, endDate);
 
         var totalCount = await _context.Entries.CountDocumentsAsync(filter);
 
@@ -37,6 +37,23 @@ public class EntryRepository : IEntryRepository
             .ToListAsync();
 
         return (items, (int)totalCount);
+    }
+
+    public async Task<IEnumerable<Entry>> GetByUserInRangeAsync(Guid userId, DateTime? start, DateTime? end)
+    {
+        var builder = Builders<Entry>.Filter;
+        var filter = builder.Eq(x => x.UserId, userId);
+
+        if (start.HasValue)
+            filter &= builder.Gte(x => x.Date, start.Value);
+
+        if (end.HasValue)
+            filter &= builder.Lt(x => x.Date, end.Value);
+
+        return await _context.Entries
+            .Find(filter)
+            .SortBy(x => x.Date)
+            .ToListAsync();
     }
 
     public async Task<Entry> CreateAsync(Entry entry)

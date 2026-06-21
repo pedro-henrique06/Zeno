@@ -16,10 +16,7 @@ public static class ServiceConfigurator
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IEntryRepository, EntryRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IFinancialGoalRepository, FinancialGoalRepository>();
-        services.AddScoped<IDebtRepository, DebtRepository>();
-        services.AddScoped<ICategoryRepository, CategoryRepository>();
-        services.AddScoped<ICategoryRuleRepository, CategoryRuleRepository>();
+        services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
         return services;
