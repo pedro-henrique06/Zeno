@@ -1,32 +1,26 @@
-using System.Data;
 using Zeno.Domain.Interfaces;
-using Zeno.Infrastructure.SQL.Context;
 
 namespace Zeno.Infrastructure.SQL.Context;
 
 public class UnitOfWork : IUnitOfWork
 {
-    private readonly ZenoDbContext _context;
+    public object? Transaction => null;
 
-    public UnitOfWork(ZenoDbContext context)
+    public Task BeginAsync()
     {
-        _context = context;
+        // MongoDB handles transactions differently - no-op for basic operations
+        return Task.CompletedTask;
     }
 
-    public IDbTransaction? Transaction => _context.Transaction;
-
-    public async Task BeginAsync()
+    public Task CommitAsync()
     {
-        await _context.BeginTransactionAsync();
+        // MongoDB handles transactions differently - no-op for basic operations
+        return Task.CompletedTask;
     }
 
-    public async Task CommitAsync()
+    public Task RollbackAsync()
     {
-        await _context.CommitTransactionAsync();
-    }
-
-    public async Task RollbackAsync()
-    {
-        await _context.RollbackTransactionAsync();
+        // MongoDB handles transactions differently - no-op for basic operations
+        return Task.CompletedTask;
     }
 }

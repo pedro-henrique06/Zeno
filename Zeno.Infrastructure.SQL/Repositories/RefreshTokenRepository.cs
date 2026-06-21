@@ -1,4 +1,4 @@
-using Dapper;
+using MongoDB.Driver;
 using Zeno.Domain.Interfaces;
 using Zeno.Infrastructure.SQL.Context;
 using RefreshTokenEntity = Zeno.Domain.Auth.RefreshToken;
@@ -7,69 +7,51 @@ namespace Zeno.Infrastructure.SQL.Repositories;
 
 public class RefreshTokenRepository : IRefreshTokenRepository
 {
-    private readonly ZenoDbContext _context;
+    private readonly ZenoMongoContext _context;
 
-    public RefreshTokenRepository(ZenoDbContext context)
+    public RefreshTokenRepository(ZenoMongoContext context)
     {
         _context = context;
     }
 
     public async Task<RefreshTokenEntity?> GetByTokenAsync(string token)
     {
-        const string sql = @"SELECT id, userid, token, expiresat, revokedat, createdat
-                             FROM refresh_tokens WHERE token = @Token";
-        var row = await _context.Connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { Token = token });
-        return row is null ? null : MapToRefreshToken(row);
+        return await _context.RefreshTokens.Find(x => x.Token == token).FirstOrDefaultAsync();
     }
 
     public async Task<RefreshTokenEntity?> GetByUserAndTokenAsync(Guid userId, string token)
     {
-        const string sql = @"SELECT id, userid, token, expiresat, revokedat, createdat
-                             FROM refresh_tokens WHERE userid = @UserId AND token = @Token";
-        var row = await _context.Connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { UserId = userId, Token = token });
-        return row is null ? null : MapToRefreshToken(row);
+        return await _context.RefreshTokens
+            .Find(x => x.UserId == userId && x.Token == token)
+            .FirstOrDefaultAsync();
     }
 
     public async Task<RefreshTokenEntity> CreateAsync(RefreshTokenEntity refreshToken)
     {
-        const string sql = @"INSERT INTO refresh_tokens (id, userid, token, expiresat, revokedat, createdat)
-                             VALUES (@Id, @UserId, @Token, @ExpiresAt, @RevokedAt, @CreatedAt)";
-        await _context.Connection.ExecuteAsync(sql, new
-        {
-            refreshToken.Id,
-            refreshToken.UserId,
-            refreshToken.Token,
-            refreshToken.ExpiresAt,
-            refreshToken.RevokedAt,
-            refreshToken.CreatedAt
-        });
+        await _context.RefreshTokens.InsertOneAsync(refreshToken);
         return refreshToken;
     }
 
     public async Task RevokeAsync(Guid userId, string token)
     {
-        const string sql = @"UPDATE refresh_tokens SET revokedat = @RevokedAt
-                             WHERE userid = @UserId AND token = @Token AND revokedat IS NULL";
-        await _context.Connection.ExecuteAsync(sql, new { UserId = userId, RevokedAt = DateTime.UtcNow, Token = token });
+        var filter = Builders<RefreshTokenEntity>.Filter.Eq(x => x.UserId, userId) &
+                     Builders<RefreshTokenEntity>.Filter.Eq(x => x.Token, token) &
+                     Builders<RefreshTokenEntity>.Filter.Eq(x => x.RevokedAt, null);
+
+        var update = Builders<RefreshTokenEntity>.Update
+            .Set(x => x.RevokedAt, DateTime.UtcNow);
+
+        await _context.RefreshTokens.UpdateOneAsync(filter, update);
     }
 
     public async Task RevokeAllUserTokensAsync(Guid userId)
     {
-        const string sql = @"UPDATE refresh_tokens SET revokedat = @RevokedAt
-                             WHERE userid = @UserId AND revokedat IS NULL";
-        await _context.Connection.ExecuteAsync(sql, new { UserId = userId, RevokedAt = DateTime.UtcNow });
-    }
+        var filter = Builders<RefreshTokenEntity>.Filter.Eq(x => x.UserId, userId) &
+                     Builders<RefreshTokenEntity>.Filter.Eq(x => x.RevokedAt, null);
 
-    private static RefreshTokenEntity MapToRefreshToken(dynamic row)
-    {
-        return new RefreshTokenEntity
-        {
-            Id = row.id,
-            UserId = row.userid,
-            Token = row.token,
-            ExpiresAt = row.expiresat,
-            RevokedAt = row.revokedat,
-            CreatedAt = row.createdat
-        };
+        var update = Builders<RefreshTokenEntity>.Update
+            .Set(x => x.RevokedAt, DateTime.UtcNow);
+
+        await _context.RefreshTokens.UpdateManyAsync(filter, update);
     }
 }

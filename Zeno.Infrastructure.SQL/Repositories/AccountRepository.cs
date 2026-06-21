@@ -1,5 +1,4 @@
-using System.Data;
-using Dapper;
+using MongoDB.Driver;
 using Zeno.Application.Interfaces;
 using Zeno.Domain.Interfaces;
 using Zeno.Domain.Wallet;
@@ -9,102 +8,62 @@ namespace Zeno.Infrastructure.SQL.Repositories;
 
 public class AccountRepository : IAccountRepository
 {
-    private readonly ZenoDbContext _context;
+    private readonly ZenoMongoContext _context;
 
-    public AccountRepository(ZenoDbContext context)
+    public AccountRepository(ZenoMongoContext context)
     {
         _context = context;
     }
 
     public async Task<Account?> GetByIdAsync(Guid id)
     {
-        const string sql = @"SELECT id, name, bank, type, balance, wallet_id, created_at
-                             FROM accounts WHERE id = @Id";
-
-        var row = await _context.Connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { Id = id });
-        return row is null ? null : MapToAccount(row);
+        return await _context.Accounts.Find(x => x.Id == id).FirstOrDefaultAsync();
     }
 
     public async Task<IEnumerable<Account>> GetByWalletIdAsync(Guid walletId)
     {
-        const string sql = @"SELECT id, name, bank, type, balance, wallet_id, created_at
-                             FROM accounts WHERE wallet_id = @WalletId ORDER BY created_at DESC";
-
-        var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { WalletId = walletId });
-        return rows.Select(r => MapToAccount(r)).Cast<Account>();
+        return await _context.Accounts
+            .Find(x => x.WalletId == walletId)
+            .SortByDescending(x => x.CreatedAt)
+            .ToListAsync();
     }
 
     public async Task<IEnumerable<Account>> GetByUserIdAsync(Guid userId)
     {
-        const string sql = @"SELECT a.id, a.name, a.bank, a.type, a.balance, a.wallet_id, a.created_at
-                             FROM accounts a
-                             INNER JOIN wallets w ON w.id = a.wallet_id
-                             WHERE w.userid = @UserId
-                             ORDER BY a.created_at DESC";
+        var walletIds = await _context.Wallets
+            .Find(x => x.UserId == userId)
+            .Project(x => x.Id)
+            .ToListAsync();
 
-        var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { UserId = userId });
-        return rows.Select(r => MapToAccount(r)).Cast<Account>();
+        return await _context.Accounts
+            .Find(x => walletIds.Contains(x.WalletId))
+            .SortByDescending(x => x.CreatedAt)
+            .ToListAsync();
     }
 
     public async Task<Account> CreateAsync(Account account)
     {
-        const string sql = @"INSERT INTO accounts (id, name, bank, type, balance, wallet_id, created_at)
-                             VALUES (@Id, @Name, @Bank, @Type, @Balance, @WalletId, @CreatedAt)";
-
-        await _context.Connection.ExecuteAsync(sql, new
-        {
-            account.Id,
-            account.Name,
-            account.Bank,
-            account.Type,
-            account.Balance,
-            account.WalletId,
-            account.CreatedAt
-        });
-
+        await _context.Accounts.InsertOneAsync(account);
         return account;
     }
 
     public async Task<Account> UpdateAsync(Account account)
     {
-        const string sql = @"UPDATE accounts
-                             SET name = @Name, bank = @Bank, type = @Type
-                             WHERE id = @Id";
-
-        await _context.Connection.ExecuteAsync(sql, new
-        {
-            account.Id,
-            account.Name,
-            account.Bank,
-            account.Type
-        });
-
+        var filter = Builders<Account>.Filter.Eq(x => x.Id, account.Id);
+        await _context.Accounts.ReplaceOneAsync(filter, account);
         return account;
     }
 
     public async Task DeleteAsync(Guid id)
     {
-        const string sql = @"DELETE FROM accounts WHERE id = @Id";
-        await _context.Connection.ExecuteAsync(sql, new { Id = id });
+        var filter = Builders<Account>.Filter.Eq(x => x.Id, id);
+        await _context.Accounts.DeleteOneAsync(filter);
     }
 
     public async Task UpdateBalanceAsync(Guid id, decimal newBalance)
     {
-        const string sql = @"UPDATE accounts SET balance = @Balance WHERE id = @Id";
-        await _context.Connection.ExecuteAsync(sql, new { Id = id, Balance = newBalance });
-    }
-
-    private Account MapToAccount(dynamic row)
-    {
-        return new Account
-        {
-            Id = row.id,
-            Name = row.name,
-            Bank = row.bank,
-            Type = row.type,
-            Balance = (decimal)row.balance,
-            WalletId = row.wallet_id,
-            CreatedAt = row.created_at
-        };
+        var filter = Builders<Account>.Filter.Eq(x => x.Id, id);
+        var update = Builders<Account>.Update.Set(x => x.Balance, newBalance);
+        await _context.Accounts.UpdateOneAsync(filter, update);
     }
 }

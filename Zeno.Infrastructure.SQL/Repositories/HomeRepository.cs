@@ -1,117 +1,118 @@
-using Dapper;
+using MongoDB.Driver;
 using Zeno.Domain.Entry;
 using Zeno.Domain.Enum;
 using Zeno.Domain.Home;
 using Zeno.Domain.Interfaces;
+using Zeno.Domain.Wallet;
 using Zeno.Infrastructure.SQL.Context;
 
 namespace Zeno.Infrastructure.SQL.Repositories;
 
 public class HomeRepository : IHomeRepository
 {
-    private readonly ZenoDbContext _context;
+    private readonly ZenoMongoContext _context;
 
-    public HomeRepository(ZenoDbContext context)
+    public HomeRepository(ZenoMongoContext context)
     {
         _context = context;
     }
 
     public async Task<Home?> GetByIdAsync(Guid id)
     {
-        const string sql = @"SELECT id, name, description, splitmode, createdat FROM homes WHERE id = @Id";
-        return await _context.Connection.QueryFirstOrDefaultAsync<Home>(sql, new { Id = id });
+        return await _context.Homes.Find(x => x.Id == id).FirstOrDefaultAsync();
     }
 
     public async Task<Home?> GetByIdAndMemberAsync(Guid id, Guid userId)
     {
-        const string sql = @"SELECT h.id, h.name, h.description, h.splitmode, h.createdat
-                             FROM homes h
-                             INNER JOIN homemembers hm ON h.id = hm.homeid
-                             WHERE h.id = @Id AND hm.userid = @UserId";
-        return await _context.Connection.QueryFirstOrDefaultAsync<Home>(sql, new { Id = id, UserId = userId });
+        var home = await _context.Homes.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (home is null) return null;
+
+        var isMember = await _context.HomeMembers.Find(x => x.HomeId == id && x.UserId == userId).AnyAsync();
+        return isMember ? home : null;
     }
 
     public async Task<IEnumerable<Home>> GetAllByUserAsync(Guid userId)
     {
-        const string sql = @"SELECT h.id, h.name, h.description, h.splitmode, h.createdat
-                             FROM homes h
-                             INNER JOIN homemembers hm ON h.id = hm.homeid
-                             WHERE hm.userid = @UserId
-                             ORDER BY h.createdat DESC";
-        return await _context.Connection.QueryAsync<Home>(sql, new { UserId = userId });
+        var memberIds = await _context.HomeMembers
+            .Find(x => x.UserId == userId)
+            .Project(x => x.HomeId)
+            .ToListAsync();
+
+        return await _context.Homes
+            .Find(x => memberIds.Contains(x.Id))
+            .SortByDescending(x => x.CreatedAt)
+            .ToListAsync();
     }
 
     public async Task<Home> CreateAsync(Home home)
     {
-        const string sql = @"INSERT INTO homes (id, name, description, splitmode, createdat)
-                             VALUES (@Id, @Name, @Description, @SplitMode, @CreatedAt)";
-        await _context.Connection.ExecuteAsync(sql, new { home.Id, home.Name, home.Description, SplitMode = (int)home.SplitMode, home.CreatedAt });
+        await _context.Homes.InsertOneAsync(home);
         return home;
     }
 
     public async Task<Home> UpdateAsync(Home home)
     {
-        const string sql = @"UPDATE homes SET name = @Name, description = @Description, splitmode = @SplitMode WHERE id = @Id";
-        await _context.Connection.ExecuteAsync(sql, new { home.Id, home.Name, home.Description, SplitMode = (int)home.SplitMode });
+        var filter = Builders<Home>.Filter.Eq(x => x.Id, home.Id);
+        await _context.Homes.ReplaceOneAsync(filter, home);
         return home;
     }
 
     public async Task DeleteAsync(Guid id)
     {
-        const string sql = @"DELETE FROM home_expenses WHERE homeid = @Id;
-                             DELETE FROM home_wallets WHERE homeid = @Id;
-                             DELETE FROM homemembers WHERE homeid = @Id;
-                             DELETE FROM homes WHERE id = @Id";
-        await _context.Connection.ExecuteAsync(sql, new { Id = id });
+        // Delete related data first
+        await _context.HomeExpenses.DeleteManyAsync(x => x.HomeId == id);
+        await _context.HomeWallets.DeleteManyAsync(x => x.HomeId == id);
+        await _context.HomeMembers.DeleteManyAsync(x => x.HomeId == id);
+        await _context.Homes.DeleteOneAsync(x => x.Id == id);
     }
 
     public async Task AddWalletAsync(Guid homeId, Guid walletId)
     {
-        const string sql = @"INSERT IGNORE INTO home_wallets (homeid, walletid) VALUES (@HomeId, @WalletId)";
-        await _context.Connection.ExecuteAsync(sql, new { HomeId = homeId, WalletId = walletId });
+        var existing = await _context.HomeWallets
+            .Find(x => x.HomeId == homeId && x.WalletId == walletId)
+            .FirstOrDefaultAsync();
+
+        if (existing is null)
+        {
+            await _context.HomeWallets.InsertOneAsync(new HomeWallet
+            {
+                Id = Guid.NewGuid(),
+                HomeId = homeId,
+                WalletId = walletId
+            });
+        }
     }
 
     public async Task RemoveWalletAsync(Guid homeId, Guid walletId)
     {
-        const string sql = @"DELETE FROM home_wallets WHERE homeid = @HomeId AND walletid = @WalletId";
-        await _context.Connection.ExecuteAsync(sql, new { HomeId = homeId, WalletId = walletId });
+        var filter = Builders<HomeWallet>.Filter.Eq(x => x.HomeId, homeId) &
+                     Builders<HomeWallet>.Filter.Eq(x => x.WalletId, walletId);
+        await _context.HomeWallets.DeleteOneAsync(filter);
     }
 
     public async Task<IEnumerable<HomeWallet>> GetWalletsByHomeAsync(Guid homeId)
     {
-        const string sql = @"SELECT homeid, walletid FROM home_wallets WHERE homeid = @HomeId";
-        return await _context.Connection.QueryAsync<HomeWallet>(sql, new { HomeId = homeId });
+        return await _context.HomeWallets
+            .Find(x => x.HomeId == homeId)
+            .ToListAsync();
     }
 
     public async Task<HomeExpense> CreateExpenseAsync(HomeExpense expense)
     {
-        const string sql = @"INSERT INTO home_expenses (id, homeid, title, value, category, month, year, created_at)
-                             VALUES (@Id, @HomeId, @Title, @Value, @Category, @Month, @Year, @CreatedAt)";
-        await _context.Connection.ExecuteAsync(sql, new
-        {
-            expense.Id,
-            expense.HomeId,
-            expense.Title,
-            expense.Value,
-            Category = (int)expense.Category,
-            expense.Month,
-            expense.Year,
-            expense.CreatedAt
-        });
+        await _context.HomeExpenses.InsertOneAsync(expense);
         return expense;
     }
 
     public async Task DeleteExpenseAsync(Guid expenseId)
     {
-        const string sql = @"DELETE FROM home_expenses WHERE id = @Id";
-        await _context.Connection.ExecuteAsync(sql, new { Id = expenseId });
+        await _context.HomeExpenses.DeleteOneAsync(x => x.Id == expenseId);
     }
 
     public async Task<IEnumerable<HomeExpense>> GetExpensesByMonthAsync(Guid homeId, int month, int year)
     {
-        const string sql = @"SELECT id, homeid, title, value, category, month, year, created_at
-                             FROM home_expenses WHERE homeid = @HomeId AND month = @Month AND year = @Year";
-        return await _context.Connection.QueryAsync<HomeExpense>(sql, new { HomeId = homeId, Month = month, Year = year });
+        return await _context.HomeExpenses
+            .Find(x => x.HomeId == homeId && x.Month == month && x.Year == year)
+            .ToListAsync();
     }
 
     public async Task<IEnumerable<ExpenseSplitResult>> CalculateSplitAsync(Guid homeId, int month, int year)
@@ -161,7 +162,7 @@ public class HomeRepository : IHomeRepository
         {
             var userId = walletUsers.GetValueOrDefault(walletId);
             var salary = memberSalaries.GetValueOrDefault(walletId, 0);
-            var weight = salary / totalSalary;
+            var weight = totalSalary > 0 ? salary / totalSalary : 0;
 
             result.Add(new ExpenseSplitResult
             {
@@ -219,44 +220,63 @@ public class HomeRepository : IHomeRepository
 
     public async Task<IEnumerable<Entry>> GetCreditsByWalletsAndMonthAsync(IEnumerable<Guid> walletIds, int month, int year)
     {
-        const string sql = @"SELECT id, title, value, type, description, category, date, walletid
-                             FROM entries
-                             WHERE walletid IN @WalletIds AND type = 0
-                             AND MONTH(date) = @Month AND YEAR(date) = @Year";
-        return await _context.Connection.QueryAsync<Entry>(sql, new { WalletIds = walletIds, Month = month, Year = year });
+        var startDate = new DateTime(year, month, 1);
+        var endDate = startDate.AddMonths(1);
+        var walletIdList = walletIds.ToList();
+
+        return await _context.Entries
+            .Find(x => walletIdList.Contains(x.WalletId) &&
+                       x.Type == EntryType.Credit &&
+                       x.Date >= startDate &&
+                       x.Date < endDate)
+            .ToListAsync();
     }
 
     public async Task AddMemberAsync(Guid homeId, Guid userId, int role)
     {
-        const string sql = @"INSERT IGNORE INTO homemembers (homeid, userid, role, joinedat) VALUES (@HomeId, @UserId, @Role, @JoinedAt)";
-        await _context.Connection.ExecuteAsync(sql, new { HomeId = homeId, UserId = userId, Role = role, JoinedAt = DateTime.UtcNow });
+        var existing = await _context.HomeMembers
+            .Find(x => x.HomeId == homeId && x.UserId == userId)
+            .FirstOrDefaultAsync();
+
+        if (existing is null)
+        {
+            await _context.HomeMembers.InsertOneAsync(new HomeMember
+            {
+                Id = Guid.NewGuid(),
+                HomeId = homeId,
+                UserId = userId,
+                Role = (HomeRole)role,
+                JoinedAt = DateTime.UtcNow
+            });
+        }
     }
 
     public async Task RemoveMemberAsync(Guid homeId, Guid userId)
     {
-        const string sql = @"DELETE FROM homemembers WHERE homeid = @HomeId AND userid = @UserId";
-        await _context.Connection.ExecuteAsync(sql, new { HomeId = homeId, UserId = userId });
+        var filter = Builders<HomeMember>.Filter.Eq(x => x.HomeId, homeId) &
+                     Builders<HomeMember>.Filter.Eq(x => x.UserId, userId);
+        await _context.HomeMembers.DeleteOneAsync(filter);
     }
 
     public async Task<bool> IsMemberAsync(Guid homeId, Guid userId)
     {
-        const string sql = @"SELECT COUNT(1) FROM homemembers WHERE homeid = @HomeId AND userid = @UserId";
-        return await _context.Connection.ExecuteScalarAsync<int>(sql, new { HomeId = homeId, UserId = userId }) > 0;
+        return await _context.HomeMembers
+            .Find(x => x.HomeId == homeId && x.UserId == userId)
+            .AnyAsync();
     }
 
     public async Task<bool> IsAdminAsync(Guid homeId, Guid userId)
     {
-        const string sql = @"SELECT COUNT(1) FROM homemembers WHERE homeid = @HomeId AND userid = @UserId AND role = 0";
-        return await _context.Connection.ExecuteScalarAsync<int>(sql, new { HomeId = homeId, UserId = userId }) > 0;
+        return await _context.HomeMembers
+            .Find(x => x.HomeId == homeId && x.UserId == userId && x.Role == HomeRole.Admin)
+            .AnyAsync();
     }
 
     public async Task<IEnumerable<HomeMember>> GetMembersByHomeAsync(Guid homeId)
     {
-        const string sql = @"SELECT hm.homeid, hm.userid, u.name as user_name, u.email as user_email, hm.role, hm.joinedat
-                             FROM homemembers hm
-                             INNER JOIN users u ON hm.userid = u.id
-                             WHERE hm.homeid = @HomeId";
-        return await _context.Connection.QueryAsync<HomeMember>(sql, new { HomeId = homeId });
+        return await _context.HomeMembers
+            .Find(x => x.HomeId == homeId)
+            .ToListAsync();
     }
 
     public async Task<IEnumerable<Home>> GetHomesByUserAsync(Guid userId)
@@ -283,33 +303,49 @@ public class HomeRepository : IHomeRepository
 
     private async Task<Dictionary<Guid, string>> GetWalletNamesAsync(IEnumerable<Guid> walletIds)
     {
-        const string sql = @"SELECT id, name FROM wallets WHERE id IN @WalletIds";
-        var wallets = await _context.Connection.QueryAsync<(Guid Id, string Name)>(sql, new { WalletIds = walletIds });
+        var walletIdList = walletIds.ToList();
+        var filter = Builders<Wallet>.Filter.In(x => x.Id, walletIdList);
+        var wallets = await _context.Wallets
+            .Find(filter)
+            .Project(x => new { x.Id, x.Name })
+            .ToListAsync();
         return wallets.ToDictionary(w => w.Id, w => w.Name);
     }
 
     private async Task<Dictionary<Guid, Guid>> GetWalletUsersAsync(IEnumerable<Guid> walletIds)
     {
-        const string sql = @"SELECT id, userid FROM wallets WHERE id IN @WalletIds";
-        var wallets = await _context.Connection.QueryAsync<(Guid Id, Guid UserId)>(sql, new { WalletIds = walletIds });
+        var walletIdList = walletIds.ToList();
+        var filter = Builders<Wallet>.Filter.In(x => x.Id, walletIdList);
+        var wallets = await _context.Wallets
+            .Find(filter)
+            .Project(x => new { x.Id, x.UserId })
+            .ToListAsync();
         return wallets.ToDictionary(w => w.Id, w => w.UserId);
     }
 
     private async Task<Dictionary<Guid, string>> GetUserNamesAsync(IEnumerable<Guid> userIds)
     {
         var ids = userIds.Distinct().ToList();
-        const string sql = @"SELECT id, name FROM users WHERE id IN @UserIds";
-        var users = await _context.Connection.QueryAsync<(Guid Id, string Name)>(sql, new { UserIds = ids });
+        if (!ids.Any()) return new Dictionary<Guid, string>();
+
+        var users = await _context.Users
+            .Find(x => ids.Contains(x.Id))
+            .Project(x => new { x.Id, x.Name })
+            .ToListAsync();
         return users.ToDictionary(u => u.Id, u => u.Name);
     }
 
     private async Task<Dictionary<Guid, decimal>> GetMemberSalariesAsync(IEnumerable<Guid> walletIds)
     {
-        const string sql = @"SELECT walletid, SUM(value) as total_amount
-                             FROM recurrententries
-                             WHERE walletid IN @WalletIds AND isactive = 1 AND kind = 0
-                             GROUP BY walletid";
-        var salaries = await _context.Connection.QueryAsync<(Guid WalletId, decimal TotalAmount)>(sql, new { WalletIds = walletIds });
-        return salaries.ToDictionary(s => s.WalletId, s => s.TotalAmount);
+        var walletIdList = walletIds.ToList();
+        if (!walletIdList.Any()) return new Dictionary<Guid, decimal>();
+
+        var salaries = await _context.RecurrentEntries
+            .Find(x => walletIdList.Contains(x.WalletId) && x.IsActive == true && x.Kind == EntryKind.Entrada)
+            .ToListAsync();
+
+        return salaries
+            .GroupBy(x => x.WalletId)
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Value));
     }
 }

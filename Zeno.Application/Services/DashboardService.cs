@@ -44,7 +44,7 @@ public class DashboardService : IDashboardService
         foreach (var wallet in walletList)
         {
             currentBalance += wallet.Balance;
-            Guid walletId = wallet.Id!.Value;
+            Guid walletId = wallet.Id;
 
             var income = await _entryRepository.GetTotalByTypeAndWalletAsync(month, year, walletId, (int)EntryType.Credit);
             var expenses = await _entryRepository.GetTotalByTypeAndWalletAsync(month, year, walletId, (int)EntryType.Debit);
@@ -91,7 +91,7 @@ public class DashboardService : IDashboardService
 
         foreach (var wallet in walletList)
         {
-            Guid walletId = wallet.Id!.Value;
+            Guid walletId = wallet.Id;
             var categories = await _entryRepository.GetCategoryTotalsAsync(month, year, walletId);
             foreach (var catData in categories)
             {

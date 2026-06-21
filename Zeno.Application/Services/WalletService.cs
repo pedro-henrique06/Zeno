@@ -33,7 +33,7 @@ public class WalletService : IWalletService
     {
         await ValidateAsync<UpdateWalletValidator, Wallet>(wallet);
 
-        var existing = await _repository.GetByIdAndUserAsync(wallet.Id!.Value, userId)
+        var existing = await _repository.GetByIdAndUserAsync(wallet.Id, userId)
             ?? throw new AppValidationException(new FluentValidation.Results.ValidationResult(
                 new List<FluentValidation.Results.ValidationFailure>
                 {

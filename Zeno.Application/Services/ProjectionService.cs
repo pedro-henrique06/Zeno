@@ -36,13 +36,13 @@ public class ProjectionService : IProjectionService
                     new("WalletId", "Carteira não encontrada.")
                 }));
 
-        var (avgIncome, avgExpenses) = await CalculateBaselineAsync(wallet.Id!.Value);
+        var (avgIncome, avgExpenses) = await CalculateBaselineAsync(wallet.Id);
 
         var months = ProjectMonths(wallet.Balance, avgIncome, avgExpenses, request);
 
         return new ProjectionResponse
         {
-            WalletId = wallet.Id!.Value,
+            WalletId = wallet.Id,
             CurrentBalance = wallet.Balance,
             AverageMonthlyIncome = Math.Round(avgIncome, 2),
             AverageMonthlyExpenses = Math.Round(avgExpenses, 2),

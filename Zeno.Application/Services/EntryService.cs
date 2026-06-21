@@ -159,7 +159,7 @@ public class EntryService : IEntryService
                     new(nameof(request.Id), "Lançamento não encontrado.")
                 }));
 
-        var wallet = await _walletRepository.GetByIdAndUserAsync(oldEntry.WalletId!.Value, userId);
+        var wallet = await _walletRepository.GetByIdAndUserAsync(oldEntry.WalletId, userId);
         if (wallet is null)
             throw new AppValidationException(new FluentValidation.Results.ValidationResult(
                 new List<FluentValidation.Results.ValidationFailure>
@@ -171,7 +171,7 @@ public class EntryService : IEntryService
 
         try
         {
-            await _walletRepository.AddBalanceAsync(oldEntry.WalletId!.Value, GetReverseBalanceAmount(oldEntry.Type, oldEntry.Value), _unitOfWork.Transaction);
+            await _walletRepository.AddBalanceAsync(oldEntry.WalletId, GetReverseBalanceAmount(oldEntry.Type, oldEntry.Value), _unitOfWork.Transaction);
 
             var updatedEntry = new Entry
             {
@@ -213,7 +213,7 @@ public class EntryService : IEntryService
                     new(nameof(request.Id), "Lançamento não encontrado.")
                 }));
 
-        var wallet = await _walletRepository.GetByIdAndUserAsync(existing.WalletId!.Value, userId);
+        var wallet = await _walletRepository.GetByIdAndUserAsync(existing.WalletId, userId);
         if (wallet is null)
             throw new AppValidationException(new FluentValidation.Results.ValidationResult(
                 new List<FluentValidation.Results.ValidationFailure>
@@ -225,7 +225,7 @@ public class EntryService : IEntryService
 
         try
         {
-            await _walletRepository.AddBalanceAsync(existing.WalletId!.Value, GetReverseBalanceAmount(existing.Type, existing.Value), _unitOfWork.Transaction);
+            await _walletRepository.AddBalanceAsync(existing.WalletId, GetReverseBalanceAmount(existing.Type, existing.Value), _unitOfWork.Transaction);
             await _entryRepository.DeleteAsync(request.Id, _unitOfWork.Transaction);
             await _unitOfWork.CommitAsync();
             return existing;

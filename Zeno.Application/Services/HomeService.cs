@@ -41,7 +41,7 @@ public class HomeService : Zeno.Application.Interfaces.IHomeService
         };
 
         var created = await _repository.CreateAsync(home);
-        await _repository.AddMemberAsync(home.Id!.Value, userId, (int)HomeRole.Admin);
+        await _repository.AddMemberAsync(created.Id, userId, (int)HomeRole.Admin);
         return created;
     }
 

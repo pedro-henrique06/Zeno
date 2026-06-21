@@ -7,7 +7,7 @@ namespace Zeno.Domain.Entry
 {
     public class Entry
     {
-        public Guid? Id { get; set; }
+        public Guid Id { get; set; }
 
         public string Title { get; set; } = string.Empty;
 
@@ -25,7 +25,7 @@ namespace Zeno.Domain.Entry
 
         public DateTime Date { get; set; } = DateTime.UtcNow;
 
-        public Guid? WalletId { get; set; }
+        public Guid WalletId { get; set; }
 
         public Entry() { }
     }

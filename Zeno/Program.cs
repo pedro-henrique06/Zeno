@@ -69,8 +69,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<ITokenBlacklistService, TokenBlacklistService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddHostedService<RecurringEntryHostedService>();
-builder.Services.AddHealthChecks()
-    .AddMySql(builder.Configuration["Database:ConnectionString"]!, name: "mysql", tags: new[] { "db", "mysql" });
+builder.Services.AddHealthChecks();
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);

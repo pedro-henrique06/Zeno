@@ -1,18 +1,15 @@
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: zeno_mysql
+  mongodb:
+    image: mongo:7
+    container_name: zeno_mongodb
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: zeno_db
-      MYSQL_USER: zeno_user
-      MYSQL_PASSWORD: zeno_password
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: rootpassword
+      MONGO_INITDB_DATABASE: zeno_db
     ports:
-      - "3306:3306"
+      - "27017:27017"
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./docker/init-mysql.sql:/docker-entrypoint-initdb.d/init.sql
-    command: --default-authentication-plugin=mysql_native_password
+      - mongodb_data:/data/db
 
 volumes:
-  mysql_data:
+  mongodb_data:

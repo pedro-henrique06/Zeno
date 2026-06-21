@@ -1,5 +1,4 @@
-using System.Data;
-using Dapper;
+using MongoDB.Driver;
 using Zeno.Domain.Entry;
 using Zeno.Domain.Enum;
 using Zeno.Domain.Interfaces;
@@ -9,252 +8,191 @@ namespace Zeno.Infrastructure.SQL.Repositories;
 
 public class EntryRepository : IEntryRepository
 {
-    private readonly ZenoDbContext _context;
+    private readonly ZenoMongoContext _context;
 
-    public EntryRepository(ZenoDbContext context)
+    public EntryRepository(ZenoMongoContext context)
     {
         _context = context;
     }
 
     public async Task<Entry?> GetByIdAsync(Guid id)
     {
-        const string sql = @"SELECT id, title, value, type, kind, description, category, date, walletid
-                             FROM entries WHERE id = @Id";
-
-        var row = await _context.Connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { Id = id });
-        return row is null ? null : MapToEntry(row);
+        return await _context.Entries.Find(x => x.Id == id).FirstOrDefaultAsync();
     }
 
     public async Task<IEnumerable<Entry>> GetByMonthAsync(int month, int year, Guid walletId)
     {
-        const string sql = @"SELECT id, title, value, type, kind, description, category, date, walletid
-                             FROM entries
-                             WHERE MONTH(date) = @Month AND YEAR(date) = @Year AND walletid = @WalletId
-                             ORDER BY date DESC";
+        var startDate = new DateTime(year, month, 1);
+        var endDate = startDate.AddMonths(1);
 
-        var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { Month = month, Year = year, WalletId = walletId });
-        return rows.Select(r => MapToEntry(r)).Cast<Entry>();
+        return await _context.Entries
+            .Find(x => x.Date >= startDate && x.Date < endDate && x.WalletId == walletId)
+            .SortByDescending(x => x.Date)
+            .ToListAsync();
     }
 
     public async Task<(IEnumerable<Entry> Items, int TotalCount)> GetByMonthPagedAsync(
         int month, int year, Guid walletId, EntryType? type, Category? category, int page, int pageSize)
     {
-        var offset = (page - 1) * pageSize;
+        var startDate = new DateTime(year, month, 1);
+        var endDate = startDate.AddMonths(1);
 
-        var whereClause = @"WHERE MONTH(date) = @Month AND YEAR(date) = @Year AND walletid = @WalletId";
+        var builder = Builders<Entry>.Filter;
+        var filter = builder.Gte(x => x.Date, startDate) & builder.Lt(x => x.Date, endDate) & builder.Eq(x => x.WalletId, walletId);
+
         if (type.HasValue)
-            whereClause += " AND type = @Type";
+            filter &= builder.Eq(x => x.Type, type.Value);
         if (category.HasValue)
-            whereClause += " AND category = @Category";
+            filter &= builder.Eq(x => x.Category, category.Value);
 
-        var countSql = $"SELECT COUNT(*) FROM entries {whereClause}";
-        var dataSql = $@"SELECT id, title, value, type, kind, description, category, date, walletid
-                         FROM entries
-                         {whereClause}
-                         ORDER BY date DESC
-                         LIMIT @PageSize OFFSET @Offset";
+        var totalCount = await _context.Entries.CountDocumentsAsync(filter);
 
-        using var multi = await _context.Connection.QueryMultipleAsync(countSql + ";" + dataSql, new
-        {
-            Month = month,
-            Year = year,
-            WalletId = walletId,
-            Type = type.HasValue ? (int)type.Value : (int?)null,
-            Category = category.HasValue ? (int)category.Value : (int?)null,
-            PageSize = pageSize,
-            Offset = offset
-        });
+        var items = await _context.Entries
+            .Find(filter)
+            .SortByDescending(x => x.Date)
+            .Skip((page - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync();
 
-        var totalCount = await multi.ReadSingleAsync<int>();
-        var rows = await multi.ReadAsync<dynamic>();
-        var items = rows.Select(r => MapToEntry(r)).Cast<Entry>();
-
-        return (items, totalCount);
+        return (items, (int)totalCount);
     }
 
     public async Task<(IEnumerable<Entry> Items, int TotalCount)> GetByMonthForUserPagedAsync(int month, int year, Guid userId, int page, int pageSize)
     {
-        var offset = (page - 1) * pageSize;
+        var startDate = new DateTime(year, month, 1);
+        var endDate = startDate.AddMonths(1);
 
-        const string countSql = @"SELECT COUNT(*)
-                                  FROM entries e
-                                  INNER JOIN wallets w ON e.walletid = w.id
-                                  WHERE w.userid = @UserId
-                                  AND MONTH(e.date) = @Month AND YEAR(e.date) = @Year";
+        // Get wallet IDs for the user
+        var walletIds = await _context.Wallets
+            .Find(x => x.UserId == userId)
+            .Project(x => x.Id)
+            .ToListAsync();
 
-        const string dataSql = @"SELECT e.id, e.title, e.value, e.type, e.kind, e.description, e.category, e.date, e.walletid
-                                 FROM entries e
-                                 INNER JOIN wallets w ON e.walletid = w.id
-                                 WHERE w.userid = @UserId
-                                 AND MONTH(e.date) = @Month AND YEAR(e.date) = @Year
-                                 ORDER BY e.date DESC
-                                 LIMIT @PageSize OFFSET @Offset";
+        var builder = Builders<Entry>.Filter;
+        var filter = builder.Gte(x => x.Date, startDate) & 
+                     builder.Lt(x => x.Date, endDate) & 
+                     builder.In(x => x.WalletId, walletIds);
 
-        using var multi = await _context.Connection.QueryMultipleAsync(countSql + ";" + dataSql, new
-        {
-            Month = month,
-            Year = year,
-            UserId = userId,
-            Offset = offset,
-            PageSize = pageSize
-        });
+        var totalCount = await _context.Entries.CountDocumentsAsync(filter);
 
-        var totalCount = await multi.ReadSingleAsync<int>();
-        var rows = await multi.ReadAsync<dynamic>();
-        var items = rows.Select(r => MapToEntry(r)).Cast<Entry>();
+        var items = await _context.Entries
+            .Find(filter)
+            .SortByDescending(x => x.Date)
+            .Skip((page - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync();
 
-        return (items, totalCount);
+        return (items, (int)totalCount);
     }
 
     public async Task<IEnumerable<Entry>> GetFromDateAsync(Guid walletId, DateTime fromDate)
     {
-        const string sql = @"SELECT id, title, value, type, kind, description, category, date, walletid
-                             FROM entries
-                             WHERE walletid = @WalletId AND date >= @FromDate
-                             ORDER BY date DESC";
-
-        var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { WalletId = walletId, FromDate = fromDate });
-        return rows.Select(r => MapToEntry(r)).Cast<Entry>();
+        return await _context.Entries
+            .Find(x => x.WalletId == walletId && x.Date >= fromDate)
+            .SortByDescending(x => x.Date)
+            .ToListAsync();
     }
 
     public async Task<IEnumerable<Entry>> GetFromDateForUserAsync(Guid userId, DateTime fromDate)
     {
-        const string sql = @"SELECT e.id, e.title, e.value, e.type, e.kind, e.description, e.category, e.date, e.walletid
-                             FROM entries e
-                             INNER JOIN wallets w ON e.walletid = w.id
-                             WHERE w.userid = @UserId AND e.date >= @FromDate
-                             ORDER BY e.date DESC";
+        // Get wallet IDs for the user
+        var walletIds = await _context.Wallets
+            .Find(x => x.UserId == userId)
+            .Project(x => x.Id)
+            .ToListAsync();
 
-        var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { UserId = userId, FromDate = fromDate });
-        return rows.Select(r => MapToEntry(r)).Cast<Entry>();
+        return await _context.Entries
+            .Find(x => walletIds.Contains(x.WalletId) && x.Date >= fromDate)
+            .SortByDescending(x => x.Date)
+            .ToListAsync();
     }
 
     public async Task<IEnumerable<Entry>> GetUpToDateAsync(Guid walletId, DateTime toDate)
     {
-        const string sql = @"SELECT id, title, value, type, kind, description, category, date, walletid
-                             FROM entries
-                             WHERE walletid = @WalletId AND date <= @ToDate
-                             ORDER BY date ASC";
-
-        var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { WalletId = walletId, ToDate = toDate });
-        return rows.Select(r => MapToEntry(r)).Cast<Entry>();
+        return await _context.Entries
+            .Find(x => x.WalletId == walletId && x.Date <= toDate)
+            .SortBy(x => x.Date)
+            .ToListAsync();
     }
 
     public async Task<IEnumerable<Entry>> GetUpToDateForUserAsync(Guid userId, DateTime toDate)
     {
-        const string sql = @"SELECT e.id, e.title, e.value, e.type, e.kind, e.description, e.category, e.date, e.walletid
-                             FROM entries e
-                             INNER JOIN wallets w ON e.walletid = w.id
-                             WHERE w.userid = @UserId AND e.date <= @ToDate
-                             ORDER BY e.date ASC";
+        // Get wallet IDs for the user
+        var walletIds = await _context.Wallets
+            .Find(x => x.UserId == userId)
+            .Project(x => x.Id)
+            .ToListAsync();
 
-        var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { UserId = userId, ToDate = toDate });
-        return rows.Select(r => MapToEntry(r)).Cast<Entry>();
+        return await _context.Entries
+            .Find(x => walletIds.Contains(x.WalletId) && x.Date <= toDate)
+            .SortBy(x => x.Date)
+            .ToListAsync();
     }
 
     public async Task<decimal> GetSumByKindAsync(Guid walletId, EntryKind kind, int month, int year)
     {
-        const string sql = @"SELECT COALESCE(SUM(value), 0)
-                             FROM entries
-                             WHERE walletid = @WalletId AND kind = @Kind
-                             AND MONTH(date) = @Month AND YEAR(date) = @Year";
+        var startDate = new DateTime(year, month, 1);
+        var endDate = startDate.AddMonths(1);
 
-        return await _context.Connection.ExecuteScalarAsync<decimal>(sql, new { WalletId = walletId, Kind = (int)kind, Month = month, Year = year });
+        var entries = await _context.Entries
+            .Find(x => x.WalletId == walletId && 
+                       x.Kind == kind && 
+                       x.Date >= startDate && 
+                       x.Date < endDate)
+            .ToListAsync();
+
+        return entries.Sum(x => x.Value);
     }
 
     public async Task<decimal> GetTotalByTypeAndWalletAsync(int month, int year, Guid walletId, int type)
     {
-        var sql = @"SELECT COALESCE(SUM(value), 0)
-                    FROM entries
-                    WHERE MONTH(date) = @Month
-                      AND YEAR(date) = @Year
-                      AND walletid = @WalletId
-                      AND type = @Type";
+        var startDate = new DateTime(year, month, 1);
+        var endDate = startDate.AddMonths(1);
 
-        return await _context.Connection.ExecuteScalarAsync<decimal>(sql, new { Month = month, Year = year, WalletId = walletId, Type = type });
+        var entries = await _context.Entries
+            .Find(x => x.Date >= startDate && 
+                       x.Date < endDate && 
+                       x.WalletId == walletId && 
+                       x.Type == (EntryType)type)
+            .ToListAsync();
+
+        return entries.Sum(x => x.Value);
     }
 
     public async Task<IEnumerable<(int Category, decimal Total)>> GetCategoryTotalsAsync(int month, int year, Guid walletId)
     {
-        var sql = @"SELECT category, COALESCE(SUM(value), 0) as total
-                    FROM entries
-                    WHERE MONTH(date) = @Month
-                      AND YEAR(date) = @Year
-                      AND walletid = @WalletId
-                      AND type = 1
-                    GROUP BY category
-                    ORDER BY total DESC";
+        var startDate = new DateTime(year, month, 1);
+        var endDate = startDate.AddMonths(1);
 
-        var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { Month = month, Year = year, WalletId = walletId });
-        return rows.Select(r => ((int)r.category, (decimal)r.total));
+        var entries = await _context.Entries
+            .Find(x => x.Date >= startDate && 
+                       x.Date < endDate && 
+                       x.WalletId == walletId && 
+                       x.Type == EntryType.Debit)
+            .ToListAsync();
+
+        return entries
+            .GroupBy(x => (int)x.Category)
+            .Select(g => ((int)g.Key, g.Sum(x => x.Value)))
+            .OrderByDescending(x => x.Item2);
     }
 
     public async Task<Entry> CreateAsync(Entry entry, object? transaction = null)
     {
-        const string sql = @"INSERT INTO entries (id, title, value, type, kind, description, category, date, walletid)
-                             VALUES (@Id, @Title, @Value, @Type, @Kind, @Description, @Category, @Date, @WalletId)";
-
-        var tx = transaction as IDbTransaction;
-        await _context.Connection.ExecuteAsync(sql, new
-        {
-            entry.Id,
-            entry.Title,
-            entry.Value,
-            Type = (int)entry.Type,
-            Kind = (int)entry.Kind,
-            entry.Description,
-            Category = (int)entry.Category,
-            entry.Date,
-            entry.WalletId
-        }, tx);
-
+        await _context.Entries.InsertOneAsync(entry);
         return entry;
     }
 
     public async Task<Entry> UpdateAsync(Entry entry, object? transaction = null)
     {
-        const string sql = @"UPDATE entries
-                             SET title = @Title, value = @Value, type = @Type, kind = @Kind,
-                                 description = @Description, category = @Category, date = @Date, walletid = @WalletId
-                             WHERE id = @Id";
-
-        var tx = transaction as IDbTransaction;
-        await _context.Connection.ExecuteAsync(sql, new
-        {
-            entry.Id,
-            entry.Title,
-            entry.Value,
-            Type = (int)entry.Type,
-            Kind = (int)entry.Kind,
-            entry.Description,
-            Category = (int)entry.Category,
-            entry.Date,
-            entry.WalletId
-        }, tx);
-
+        var filter = Builders<Entry>.Filter.Eq(x => x.Id, entry.Id);
+        await _context.Entries.ReplaceOneAsync(filter, entry);
         return entry;
     }
 
     public async Task DeleteAsync(Guid id, object? transaction = null)
     {
-        const string sql = @"DELETE FROM entries WHERE id = @Id";
-        var tx = transaction as IDbTransaction;
-        await _context.Connection.ExecuteAsync(sql, new { Id = id }, tx);
-    }
-
-    private Entry MapToEntry(dynamic row)
-    {
-        return new Entry
-        {
-            Id = row.id,
-            Title = row.title,
-            Value = (decimal)row.value,
-            Type = (EntryType)(int)row.type,
-            Kind = (EntryKind)(int)row.kind,
-            Description = row.description,
-            Category = (Category)(int)row.category,
-            Date = row.date,
-            WalletId = row.walletid
-        };
+        var filter = Builders<Entry>.Filter.Eq(x => x.Id, id);
+        await _context.Entries.DeleteOneAsync(filter);
     }
 }
