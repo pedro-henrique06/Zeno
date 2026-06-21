@@ -1,0 +1,99 @@
+using MongoDB.Driver;
+using Zeno.Domain.User;
+using Zeno.Domain.Wallet;
+using Zeno.Domain.Entry;
+using Zeno.Domain.Home;
+using Zeno.Domain.Recurring;
+using Zeno.Domain.FinancialGoal;
+using Zeno.Domain.Debt;
+using Zeno.Domain.CustomCategory;
+using Zeno.Domain.Auth;
+
+namespace Zeno.Infrastructure.SQL.Context;
+
+public class ZenoMongoContext
+{
+    private readonly IMongoDatabase _database;
+    private readonly IMongoClient _client;
+
+    public ZenoMongoContext(string connectionString, string databaseName = "zeno_db")
+    {
+        _client = new MongoClient(connectionString);
+        _database = _client.GetDatabase(databaseName);
+    }
+
+    /// <summary>
+    /// Creates indexes for all collections. Call this method during application startup or migration.
+    /// </summary>
+    public async Task CreateIndexesAsync()
+    {
+        // User indexes
+        await Users.Indexes.CreateOneAsync(new CreateIndexModel<User>(
+            Builders<User>.IndexKeys.Ascending(x => x.Email),
+            new CreateIndexOptions { Unique = true }));
+        await Users.Indexes.CreateOneAsync(new CreateIndexModel<User>(
+            Builders<User>.IndexKeys.Ascending(x => x.Provider).Ascending(x => x.ProviderId)));
+
+        // Wallet indexes
+        await Wallets.Indexes.CreateOneAsync(new CreateIndexModel<Wallet>(
+            Builders<Wallet>.IndexKeys.Ascending(x => x.UserId)));
+
+        // Entry indexes
+        await Entries.Indexes.CreateOneAsync(new CreateIndexModel<Entry>(
+            Builders<Entry>.IndexKeys.Ascending(x => x.WalletId).Ascending(x => x.Date)));
+        await Entries.Indexes.CreateOneAsync(new CreateIndexModel<Entry>(
+            Builders<Entry>.IndexKeys.Ascending(x => x.Date)));
+
+        // RefreshToken indexes
+        await RefreshTokens.Indexes.CreateOneAsync(new CreateIndexModel<RefreshToken>(
+            Builders<RefreshToken>.IndexKeys.Ascending(x => x.Token),
+            new CreateIndexOptions { Unique = true }));
+        await RefreshTokens.Indexes.CreateOneAsync(new CreateIndexModel<RefreshToken>(
+            Builders<RefreshToken>.IndexKeys.Ascending(x => x.UserId)));
+
+        // Home indexes
+        await Homes.Indexes.CreateOneAsync(new CreateIndexModel<Home>(
+            Builders<Home>.IndexKeys.Ascending(x => x.Name)));
+        await HomeMembers.Indexes.CreateOneAsync(new CreateIndexModel<HomeMember>(
+            Builders<HomeMember>.IndexKeys.Ascending(x => x.HomeId).Ascending(x => x.UserId)));
+        await HomeWallets.Indexes.CreateOneAsync(new CreateIndexModel<HomeWallet>(
+            Builders<HomeWallet>.IndexKeys.Ascending(x => x.HomeId).Ascending(x => x.WalletId)));
+
+        // RecurringEntry indexes
+        await RecurrentEntries.Indexes.CreateOneAsync(new CreateIndexModel<RecurringEntry>(
+            Builders<RecurringEntry>.IndexKeys.Ascending(x => x.UserId)));
+        await RecurrentEntries.Indexes.CreateOneAsync(new CreateIndexModel<RecurringEntry>(
+            Builders<RecurringEntry>.IndexKeys.Ascending(x => x.WalletId)));
+        await RecurrentEntries.Indexes.CreateOneAsync(new CreateIndexModel<RecurringEntry>(
+            Builders<RecurringEntry>.IndexKeys.Ascending(x => x.IsActive).Ascending(x => x.DayOfMonth)));
+
+        // FinancialGoal indexes
+        await FinancialGoals.Indexes.CreateOneAsync(new CreateIndexModel<FinancialGoal>(
+            Builders<FinancialGoal>.IndexKeys.Ascending(x => x.UserId)));
+
+        // Debt indexes
+        await Debts.Indexes.CreateOneAsync(new CreateIndexModel<Debt>(
+            Builders<Debt>.IndexKeys.Ascending(x => x.UserId)));
+
+        // Category indexes
+        await Categories.Indexes.CreateOneAsync(new CreateIndexModel<Category>(
+            Builders<Category>.IndexKeys.Ascending(x => x.UserId).Ascending(x => x.Type)));
+        await CategoryRules.Indexes.CreateOneAsync(new CreateIndexModel<CategoryRule>(
+            Builders<CategoryRule>.IndexKeys.Ascending(x => x.UserId)));
+    }
+
+    public IMongoCollection<User> Users => _database.GetCollection<User>("users");
+    public IMongoCollection<Wallet> Wallets => _database.GetCollection<Wallet>("wallets");
+    public IMongoCollection<Account> Accounts => _database.GetCollection<Account>("accounts");
+    public IMongoCollection<Entry> Entries => _database.GetCollection<Entry>("entries");
+    public IMongoCollection<Home> Homes => _database.GetCollection<Home>("homes");
+    public IMongoCollection<HomeWallet> HomeWallets => _database.GetCollection<HomeWallet>("homewallets");
+    public IMongoCollection<HomeExpense> HomeExpenses => _database.GetCollection<HomeExpense>("homeexpenses");
+    public IMongoCollection<HomeMember> HomeMembers => _database.GetCollection<HomeMember>("homemembers");
+    public IMongoCollection<RecurringEntry> RecurrentEntries => _database.GetCollection<RecurringEntry>("recurrententries");
+    public IMongoCollection<FinancialGoal> FinancialGoals => _database.GetCollection<FinancialGoal>("financialgoals");
+    public IMongoCollection<Debt> Debts => _database.GetCollection<Debt>("debts");
+    public IMongoCollection<Category> Categories => _database.GetCollection<Category>("categories");
+    public IMongoCollection<CategoryRule> CategoryRules => _database.GetCollection<CategoryRule>("categoryrules");
+    public IMongoCollection<RefreshToken> RefreshTokens => _database.GetCollection<RefreshToken>("refreshtokens");
+}
