@@ -11,7 +11,46 @@ using Zeno.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ============================================
+// VALIDAÇÃO DE CONFIGURAÇÃO OBRIGATÓRIA
+// ============================================
+var requiredConfigs = new Dictionary<string, string>
+{
+    { "Jwt:Key", builder.Configuration["Jwt:Key"] ?? "" },
+    { "Jwt:Issuer", builder.Configuration["Jwt:Issuer"] ?? "" },
+    { "Database:ConnectionString", builder.Configuration["Database:ConnectionString"] ?? "" },
+    { "Encryption:Key", builder.Configuration["Encryption:Key"] ?? "" }
+};
+
+var missingConfigs = requiredConfigs.Where(c => string.IsNullOrWhiteSpace(c.Value)).Select(c => c.Key).ToList();
+
+if (missingConfigs.Any())
+{
+    var errorMessage = $"[CONFIG ERROR] Configurações obrigatórias faltando: {string.Join(", ", missingConfigs)}\n" +
+                       "Por favor, configure as seguintes variáveis de ambiente:\n" +
+                       "  - Jwt__Key (mínimo 32 caracteres)\n" +
+                       "  - Jwt__Issuer\n" +
+                       "  - Database__ConnectionString\n" +
+                       "  - Encryption__Key";
+    throw new InvalidOperationException(errorMessage);
+}
+
+// Validação específica para JWT Key (mínimo 32 caracteres)
 var jwtKey = builder.Configuration["Jwt:Key"]!;
+if (jwtKey.Length < 32)
+{
+    throw new InvalidOperationException($"[CONFIG ERROR] Jwt:Key deve ter pelo menos 32 caracteres. Tamanho atual: {jwtKey.Length}");
+}
+
+// Validação da string de conexão do banco de dados
+var dbConnectionString = builder.Configuration["Database:ConnectionString"]!;
+if (!string.IsNullOrEmpty(dbConnectionString) && dbConnectionString.Contains("Host=") && dbConnectionString.Contains("Port="))
+{
+    throw new InvalidOperationException(
+        "[CONFIG ERROR] A string de conexão parece ser PostgreSQL/MySQL, mas o banco de dados atual é MongoDB.\n" +
+        "Por favor, use uma string de conexão MongoDB (ex: mongodb://user:pass@host:port/database)");
+}
+
 var jwtIssuer = builder.Configuration["Jwt:Issuer"]!;
 var jwtExpireHours = int.Parse(builder.Configuration["Jwt:ExpireHours"] ?? "2");
 
