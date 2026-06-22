@@ -1,17 +1,23 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Zeno.Application.Exceptions;
 using Zeno.Responses;
 
 namespace Zeno.Controllers;
 
+[Authorize]
 public abstract class AppControllerBase : ControllerBase
 {
     protected Guid GetUserId()
     {
         var sub = User.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? User.FindFirstValue("sub");
-        return Guid.Parse(sub!);
+
+        if (!Guid.TryParse(sub, out var userId))
+            throw new UnauthorizedAccessException("Usuário não autenticado.");
+
+        return userId;
     }
 
     protected async Task<IActionResult> HandleAsync<T>(Func<Task<T>> action, Func<T, IActionResult> onSuccess)
