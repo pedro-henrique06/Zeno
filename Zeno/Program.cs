@@ -88,6 +88,7 @@ var connStr = builder.Configuration["Database:ConnectionString"]!;
 builder.Services.AddInfrastructureSQL(connStr, builder.Configuration["Encryption:Key"]!);
 builder.Services.AddScoped<IEntryService, EntryService>();
 builder.Services.AddScoped<ITagService, TagService>();
+builder.Services.AddScoped<IMonthlyExpenseCategoryService, MonthlyExpenseCategoryService>();
 builder.Services.AddScoped<IBalanceService, BalanceService>();
 builder.Services.AddScoped<ISummaryService, SummaryService>();
 builder.Services.AddScoped<IUserService, UserService>();
