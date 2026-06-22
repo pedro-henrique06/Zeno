@@ -86,4 +86,20 @@ public class SummaryController : AppControllerBase
             },
             result => Ok(ApiResponse<CostOfLivingHorizonResponse>.Ok(result)));
     }
+
+    [HttpGet("daily-average-horizon")]
+    public async Task<IActionResult> GetDailyAverageHorizon([FromQuery] YearQuery query)
+    {
+        var userId = GetUserId();
+        return await HandleAsync(
+            async () =>
+            {
+                var validation = await _yearValidator.ValidateAsync(query);
+                if (!validation.IsValid)
+                    throw new AppValidationException(validation);
+
+                return await _service.GetDailyAverageHorizon(userId, query.Year);
+            },
+            result => Ok(ApiResponse<DailyAverageHorizonResponse>.Ok(result)));
+    }
 }

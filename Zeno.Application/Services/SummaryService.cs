@@ -139,4 +139,22 @@ public class SummaryService : ISummaryService
 
         return new CostOfLivingHorizonResponse { Year = year, CostOfLiving = months.Sum(m => m.CostOfLiving), Months = months };
     }
+
+    public async Task<DailyAverageHorizonResponse> GetDailyAverageHorizon(Guid userId, int year)
+    {
+        var months = new List<DailyAverageMonthResponse>();
+        for (var month = 1; month <= 12; month++)
+        {
+            var summary = await GetMonthlySummary(userId, month, year);
+            months.Add(new DailyAverageMonthResponse
+            {
+                Month = month,
+                DailyAverage = summary.DailyAverageReal,
+                TotalDiario = summary.Movements.Diario,
+                DaysInMonth = summary.DaysInMonth
+            });
+        }
+
+        return new DailyAverageHorizonResponse { Year = year, Months = months };
+    }
 }

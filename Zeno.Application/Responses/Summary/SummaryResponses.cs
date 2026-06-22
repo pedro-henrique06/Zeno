@@ -63,3 +63,17 @@ public sealed class CostOfLivingHorizonResponse
     public decimal CostOfLiving { get; set; }
     public List<CostOfLivingMonthResponse> Months { get; set; } = new();
 }
+
+public sealed class DailyAverageMonthResponse
+{
+    public int Month { get; set; }
+    public decimal DailyAverage { get; set; }
+    public decimal TotalDiario { get; set; }
+    public int DaysInMonth { get; set; }
+}
+
+public sealed class DailyAverageHorizonResponse
+{
+    public int Year { get; set; }
+    public List<DailyAverageMonthResponse> Months { get; set; } = new();
+}
