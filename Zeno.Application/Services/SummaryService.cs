@@ -73,4 +73,46 @@ public class SummaryService : ISummaryService
             }
         };
     }
+
+    public async Task<EconomizedHorizonResponse> GetEconomizedHorizon(Guid userId, int year)
+    {
+        var yearStart = new DateTime(year, 1, 1);
+        var yearEnd = yearStart.AddYears(1);
+
+        var yearEntries = await _entryRepository.GetByUserInRangeAsync(userId, yearStart, yearEnd);
+        var recurringTemplates = await _entryRepository.GetRecurringBeforeAsync(userId, yearEnd);
+        var recurringOccurrences = RecurringEntryProjector.ExpandOccurrencesInRange(recurringTemplates, yearStart, yearEnd);
+        yearEntries = yearEntries.Concat(recurringOccurrences).ToList();
+
+        var months = new List<EconomizedMonthResponse>();
+        for (var month = 1; month <= 12; month++)
+        {
+            var monthStart = new DateTime(year, month, 1);
+            var monthEnd = monthStart.AddMonths(1);
+            var monthEntries = yearEntries.Where(e => e.Date >= monthStart && e.Date < monthEnd);
+
+            var entrada = monthEntries.Where(e => e.Kind == EntryKind.Entrada).Sum(e => e.Value);
+            var economia = monthEntries.Where(e => e.Kind == EntryKind.Economia).Sum(e => e.Value);
+
+            months.Add(new EconomizedMonthResponse
+            {
+                Month = month,
+                EconomizedPercent = entrada > 0 ? economia / entrada * 100 : 0,
+                Economia = economia,
+                Entrada = entrada
+            });
+        }
+
+        var totalEntrada = months.Sum(m => m.Entrada);
+        var totalEconomia = months.Sum(m => m.Economia);
+
+        return new EconomizedHorizonResponse
+        {
+            Year = year,
+            EconomizedPercent = totalEntrada > 0 ? totalEconomia / totalEntrada * 100 : 0,
+            Economia = totalEconomia,
+            Entrada = totalEntrada,
+            Months = months
+        };
+    }
 }

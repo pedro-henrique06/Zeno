@@ -5,4 +5,5 @@ namespace Zeno.Application.Interfaces;
 public interface ISummaryService
 {
     Task<SummaryResponse> GetMonthlySummary(Guid userId, int month, int year);
+    Task<EconomizedHorizonResponse> GetEconomizedHorizon(Guid userId, int year);
 }
