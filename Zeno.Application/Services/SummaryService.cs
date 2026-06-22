@@ -127,4 +127,16 @@ public class SummaryService : ISummaryService
 
         return new PerformanceHorizonResponse { Year = year, Months = months };
     }
+
+    public async Task<CostOfLivingHorizonResponse> GetCostOfLivingHorizon(Guid userId, int year)
+    {
+        var months = new List<CostOfLivingMonthResponse>();
+        for (var month = 1; month <= 12; month++)
+        {
+            var summary = await GetMonthlySummary(userId, month, year);
+            months.Add(new CostOfLivingMonthResponse { Month = month, CostOfLiving = summary.CostOfLiving });
+        }
+
+        return new CostOfLivingHorizonResponse { Year = year, CostOfLiving = months.Sum(m => m.CostOfLiving), Months = months };
+    }
 }

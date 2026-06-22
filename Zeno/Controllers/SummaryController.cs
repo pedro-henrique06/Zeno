@@ -70,4 +70,20 @@ public class SummaryController : AppControllerBase
             },
             result => Ok(ApiResponse<PerformanceHorizonResponse>.Ok(result)));
     }
+
+    [HttpGet("cost-of-living-horizon")]
+    public async Task<IActionResult> GetCostOfLivingHorizon([FromQuery] YearQuery query)
+    {
+        var userId = GetUserId();
+        return await HandleAsync(
+            async () =>
+            {
+                var validation = await _yearValidator.ValidateAsync(query);
+                if (!validation.IsValid)
+                    throw new AppValidationException(validation);
+
+                return await _service.GetCostOfLivingHorizon(userId, query.Year);
+            },
+            result => Ok(ApiResponse<CostOfLivingHorizonResponse>.Ok(result)));
+    }
 }
