@@ -119,7 +119,7 @@ public class AuthController : AppControllerBase
                 return Unauthorized(new { error = "Falha ao obter informações do usuário." });
 
             var result = await _authService.HandleOAuthCallbackAsync(provider, userInfo.id ?? "", userInfo.email ?? "", userInfo.name ?? "");
-            return Redirect($"https://zeno-production-51bb.up.railway.app/auth/callback?token={result.Token}");
+            return Redirect($"https://zeno-production-51bb.up.railway.app/auth/callback?token={result.Token}&refreshToken={result.RefreshToken}");
         }
         catch (Exception ex)
         {
