@@ -17,6 +17,7 @@ public static class ServiceConfigurator
         services.AddScoped<IEntryRepository, EntryRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ITagRepository, TagRepository>();
+        services.AddScoped<IMonthlyExpenseCategoryRepository, MonthlyExpenseCategoryRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
         return services;

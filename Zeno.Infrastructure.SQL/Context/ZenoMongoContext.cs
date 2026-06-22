@@ -6,6 +6,7 @@ using Zeno.Domain.User;
 using Zeno.Domain.Entry;
 using Zeno.Domain.Auth;
 using Tag = Zeno.Domain.Tag.Tag;
+using MonthlyExpenseCategory = Zeno.Domain.MonthlyExpenseCategory.MonthlyExpenseCategory;
 
 namespace Zeno.Infrastructure.SQL.Context;
 
@@ -44,10 +45,14 @@ public class ZenoMongoContext
 
         await Tags.Indexes.CreateOneAsync(new CreateIndexModel<Tag>(
             Builders<Tag>.IndexKeys.Ascending(x => x.UserId)));
+
+        await MonthlyExpenseCategories.Indexes.CreateOneAsync(new CreateIndexModel<MonthlyExpenseCategory>(
+            Builders<MonthlyExpenseCategory>.IndexKeys.Ascending(x => x.UserId)));
     }
 
     public IMongoCollection<User> Users => _database.GetCollection<User>("users");
     public IMongoCollection<Entry> Entries => _database.GetCollection<Entry>("entries");
     public IMongoCollection<Tag> Tags => _database.GetCollection<Tag>("tags");
     public IMongoCollection<RefreshToken> RefreshTokens => _database.GetCollection<RefreshToken>("refreshtokens");
+    public IMongoCollection<MonthlyExpenseCategory> MonthlyExpenseCategories => _database.GetCollection<MonthlyExpenseCategory>("monthlyexpensecategories");
 }
