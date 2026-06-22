@@ -19,3 +19,9 @@ public sealed class BalancesResponse
     public int Year { get; set; }
     public List<BalanceDayResponse> Days { get; set; } = new();
 }
+
+public sealed class BalancesHorizonResponse
+{
+    public int Year { get; set; }
+    public List<BalancesResponse> Months { get; set; } = new();
+}
