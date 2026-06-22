@@ -26,10 +26,14 @@ public class BalanceService : IBalanceService
         var monthEnd = monthStart.AddMonths(1);
         var today = DateTime.UtcNow.Date;
 
+        var recurringTemplates = (await _entryRepository.GetRecurringBeforeAsync(userId, monthEnd)).ToList();
+
         var balance = await _entryRepository.GetSignedBalanceBeforeAsync(userId, monthStart);
+        balance += RecurringEntryProjector.SumSignedBefore(recurringTemplates, monthStart);
 
         var monthEntries = await _entryRepository.GetByUserInRangeAsync(userId, monthStart, monthEnd);
-        var entriesByDay = monthEntries.GroupBy(e => e.Date.Date).ToDictionary(g => g.Key, g => g.ToList());
+        var recurringOccurrences = RecurringEntryProjector.ExpandOccurrencesInRange(recurringTemplates, monthStart, monthEnd);
+        var entriesByDay = monthEntries.Concat(recurringOccurrences).GroupBy(e => e.Date.Date).ToDictionary(g => g.Key, g => g.ToList());
 
         var daysInMonth = DateTime.DaysInMonth(year, month);
         var days = new List<BalanceDayResponse>();
@@ -41,7 +45,7 @@ public class BalanceService : IBalanceService
 
             decimal entrada = 0, saida = 0, diario = 0, economia = 0, cartao = 0;
 
-            if (!isProjected && entriesByDay.TryGetValue(date, out var dayEntries))
+            if (entriesByDay.TryGetValue(date, out var dayEntries))
             {
                 entrada = dayEntries.Where(e => e.Kind == EntryKind.Entrada).Sum(e => e.Value);
                 saida = dayEntries.Where(e => e.Kind == EntryKind.Saida).Sum(e => e.Value);
@@ -50,7 +54,7 @@ public class BalanceService : IBalanceService
                 cartao = dayEntries.Where(e => e.Kind == EntryKind.Cartao).Sum(e => e.Value);
             }
 
-            if (isProjected)
+            if (isProjected && diario == 0)
                 diario = dailyBudget;
 
             balance += entrada - saida - diario - economia - cartao;
