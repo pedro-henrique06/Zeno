@@ -38,3 +38,15 @@ public sealed class EconomizedHorizonResponse
     public decimal Entrada { get; set; }
     public List<EconomizedMonthResponse> Months { get; set; } = new();
 }
+
+public sealed class PerformanceMonthResponse
+{
+    public int Month { get; set; }
+    public decimal Performance { get; set; }
+}
+
+public sealed class PerformanceHorizonResponse
+{
+    public int Year { get; set; }
+    public List<PerformanceMonthResponse> Months { get; set; } = new();
+}

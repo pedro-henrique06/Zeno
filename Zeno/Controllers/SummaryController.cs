@@ -54,4 +54,20 @@ public class SummaryController : AppControllerBase
             },
             result => Ok(ApiResponse<EconomizedHorizonResponse>.Ok(result)));
     }
+
+    [HttpGet("performance-horizon")]
+    public async Task<IActionResult> GetPerformanceHorizon([FromQuery] YearQuery query)
+    {
+        var userId = GetUserId();
+        return await HandleAsync(
+            async () =>
+            {
+                var validation = await _yearValidator.ValidateAsync(query);
+                if (!validation.IsValid)
+                    throw new AppValidationException(validation);
+
+                return await _service.GetPerformanceHorizon(userId, query.Year);
+            },
+            result => Ok(ApiResponse<PerformanceHorizonResponse>.Ok(result)));
+    }
 }

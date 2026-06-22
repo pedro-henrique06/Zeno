@@ -115,4 +115,16 @@ public class SummaryService : ISummaryService
             Months = months
         };
     }
+
+    public async Task<PerformanceHorizonResponse> GetPerformanceHorizon(Guid userId, int year)
+    {
+        var months = new List<PerformanceMonthResponse>();
+        for (var month = 1; month <= 12; month++)
+        {
+            var summary = await GetMonthlySummary(userId, month, year);
+            months.Add(new PerformanceMonthResponse { Month = month, Performance = summary.Performance });
+        }
+
+        return new PerformanceHorizonResponse { Year = year, Months = months };
+    }
 }
