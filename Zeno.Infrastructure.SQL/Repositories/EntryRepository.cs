@@ -57,6 +57,14 @@ public class EntryRepository : IEntryRepository
             .ToListAsync();
     }
 
+    public async Task<IEnumerable<Entry>> GetRecurringBeforeAsync(Guid userId, DateTime before)
+    {
+        var builder = Builders<Entry>.Filter;
+        var filter = builder.Eq(x => x.UserId, userId) & builder.Eq(x => x.IsRecurring, true) & builder.Lt(x => x.Date, before);
+
+        return await _context.Entries.Find(filter).ToListAsync();
+    }
+
     public async Task<decimal> GetSignedBalanceBeforeAsync(Guid userId, DateTime before)
     {
         var result = await _context.Entries

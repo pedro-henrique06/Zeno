@@ -20,5 +20,7 @@ public class Entry
 
     public DateTime Date { get; set; } = DateTime.UtcNow;
 
+    public bool IsRecurring { get; set; }
+
     public Entry() { }
 }

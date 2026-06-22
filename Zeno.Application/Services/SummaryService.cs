@@ -37,6 +37,9 @@ public class SummaryService : ISummaryService
         var remainingDays = daysInMonth - elapsedDays;
 
         var monthEntries = await _entryRepository.GetByUserInRangeAsync(userId, monthStart, monthEnd);
+        var recurringTemplates = await _entryRepository.GetRecurringBeforeAsync(userId, monthEnd);
+        var recurringOccurrences = RecurringEntryProjector.ExpandOccurrencesInRange(recurringTemplates, monthStart, monthEnd);
+        monthEntries = monthEntries.Concat(recurringOccurrences);
 
         var totalEntrada = monthEntries.Where(e => e.Kind == EntryKind.Entrada).Sum(e => e.Value);
         var totalSaida = monthEntries.Where(e => e.Kind == EntryKind.Saida).Sum(e => e.Value);
