@@ -8,4 +8,5 @@ public interface ISummaryService
     Task<EconomizedHorizonResponse> GetEconomizedHorizon(Guid userId, int year);
     Task<PerformanceHorizonResponse> GetPerformanceHorizon(Guid userId, int year);
     Task<CostOfLivingHorizonResponse> GetCostOfLivingHorizon(Guid userId, int year);
+    Task<DailyAverageHorizonResponse> GetDailyAverageHorizon(Guid userId, int year);
 }
