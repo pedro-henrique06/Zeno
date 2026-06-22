@@ -5,6 +5,7 @@ using MongoDB.Driver;
 using Zeno.Domain.User;
 using Zeno.Domain.Entry;
 using Zeno.Domain.Auth;
+using Zeno.Domain.Enum;
 using Tag = Zeno.Domain.Tag.Tag;
 using MonthlyExpenseCategory = Zeno.Domain.MonthlyExpenseCategory.MonthlyExpenseCategory;
 
@@ -18,6 +19,8 @@ public class ZenoMongoContext
     static ZenoMongoContext()
     {
         BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
+        BsonSerializer.RegisterSerializer(typeof(Currency), new EnumSerializer<Currency>(BsonType.String));
+        BsonSerializer.RegisterSerializer(typeof(Language), new EnumSerializer<Language>(BsonType.String));
     }
 
     public ZenoMongoContext(string connectionString, string databaseName = "zeno_db")

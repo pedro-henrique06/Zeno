@@ -107,6 +107,8 @@ public class AuthService : IAuthService
             BirthDate = request.BirthDate,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             Provider = OAuthProvider.None,
+            Currency = request.Currency ?? Zeno.Domain.Enum.Currency.BRL,
+            Language = request.Language ?? Zeno.Domain.Enum.Language.PtBR,
             CreatedAt = DateTime.UtcNow
         };
 

@@ -92,6 +92,7 @@ builder.Services.AddScoped<IMonthlyExpenseCategoryService, MonthlyExpenseCategor
 builder.Services.AddScoped<IBalanceService, BalanceService>();
 builder.Services.AddScoped<ISummaryService, SummaryService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddHttpClient<IExchangeRateService, ExchangeRateService>();
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddSingleton<ITokenBlacklistService, TokenBlacklistService>();

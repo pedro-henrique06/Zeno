@@ -44,4 +44,11 @@ public class MonthlyExpenseCategoryRepository : IMonthlyExpenseCategoryRepositor
     {
         await _context.MonthlyExpenseCategories.DeleteOneAsync(x => x.Id == id);
     }
+
+    public async Task MultiplyAmountsForUserAsync(Guid userId, decimal factor)
+    {
+        var filter = Builders<MonthlyExpenseCategoryEntity>.Filter.Eq(x => x.UserId, userId);
+        var update = Builders<MonthlyExpenseCategoryEntity>.Update.Mul(x => x.Amount, factor);
+        await _context.MonthlyExpenseCategories.UpdateManyAsync(filter, update);
+    }
 }
