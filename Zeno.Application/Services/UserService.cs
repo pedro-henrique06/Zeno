@@ -12,11 +12,22 @@ public class UserService : IUserService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly IUserRepository _userRepository;
+    private readonly IEntryRepository _entryRepository;
+    private readonly IMonthlyExpenseCategoryRepository _monthlyExpenseCategoryRepository;
+    private readonly IExchangeRateService _exchangeRateService;
 
-    public UserService(IServiceProvider serviceProvider, IUserRepository userRepository)
+    public UserService(
+        IServiceProvider serviceProvider,
+        IUserRepository userRepository,
+        IEntryRepository entryRepository,
+        IMonthlyExpenseCategoryRepository monthlyExpenseCategoryRepository,
+        IExchangeRateService exchangeRateService)
     {
         _serviceProvider = serviceProvider;
         _userRepository = userRepository;
+        _entryRepository = entryRepository;
+        _monthlyExpenseCategoryRepository = monthlyExpenseCategoryRepository;
+        _exchangeRateService = exchangeRateService;
     }
 
     public async Task<UserProfileResponse> GetProfile(Guid userId)
@@ -104,6 +115,51 @@ public class UserService : IUserService
         return ToResponse(user);
     }
 
+    public async Task<UserProfileResponse> UpdateCurrency(Guid userId, UpdateCurrencyRequest request)
+    {
+        await ValidateAsync<UpdateCurrencyRequestValidator, UpdateCurrencyRequest>(request);
+
+        var user = await _userRepository.GetByIdAsync(userId)
+            ?? throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new("UserId", "Usuário não encontrado.")
+                }));
+
+        if (user.Currency != request.Currency)
+        {
+            var rate = await _exchangeRateService.GetRateAsync(user.Currency, request.Currency);
+
+            if (user.DailyBudget.HasValue)
+                user.DailyBudget = Math.Round(user.DailyBudget.Value * rate, 2);
+
+            user.Currency = request.Currency;
+
+            await _entryRepository.MultiplyValuesForUserAsync(userId, rate);
+            await _monthlyExpenseCategoryRepository.MultiplyAmountsForUserAsync(userId, rate);
+            await _userRepository.UpdateProfileAsync(user);
+        }
+
+        return ToResponse(user);
+    }
+
+    public async Task<UserProfileResponse> UpdateLanguage(Guid userId, UpdateLanguageRequest request)
+    {
+        await ValidateAsync<UpdateLanguageRequestValidator, UpdateLanguageRequest>(request);
+
+        var user = await _userRepository.GetByIdAsync(userId)
+            ?? throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new("UserId", "Usuário não encontrado.")
+                }));
+
+        user.Language = request.Language;
+        await _userRepository.UpdateProfileAsync(user);
+
+        return ToResponse(user);
+    }
+
     private static UserProfileResponse ToResponse(Zeno.Domain.User.User user)
     {
         return new UserProfileResponse
@@ -116,7 +172,9 @@ public class UserService : IUserService
             BirthDate = user.BirthDate,
             OAuthProvider = user.Provider.ToString(),
             HasPassword = !string.IsNullOrEmpty(user.PasswordHash),
-            DailyBudget = user.DailyBudget
+            DailyBudget = user.DailyBudget,
+            Currency = user.Currency.ToString(),
+            Language = user.Language.ToString()
         };
     }
 

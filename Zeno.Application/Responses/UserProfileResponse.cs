@@ -11,4 +11,6 @@ public class UserProfileResponse
     public string OAuthProvider { get; set; } = "None";
     public bool HasPassword { get; set; }
     public decimal? DailyBudget { get; set; }
+    public string Currency { get; set; } = "BRL";
+    public string Language { get; set; } = "PtBR";
 }

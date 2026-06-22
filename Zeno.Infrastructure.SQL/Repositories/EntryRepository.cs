@@ -101,4 +101,11 @@ public class EntryRepository : IEntryRepository
         var update = Builders<Entry>.Update.Set(x => x.TagId, null);
         await _context.Entries.UpdateManyAsync(filter, update);
     }
+
+    public async Task MultiplyValuesForUserAsync(Guid userId, decimal factor)
+    {
+        var filter = Builders<Entry>.Filter.Eq(x => x.UserId, userId);
+        var update = Builders<Entry>.Update.Mul(x => x.Value, factor);
+        await _context.Entries.UpdateManyAsync(filter, update);
+    }
 }

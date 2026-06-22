@@ -13,4 +13,5 @@ public interface IEntryRepository
     Task<EntryEntity> UpdateAsync(EntryEntity entry);
     Task DeleteAsync(Guid id);
     Task ClearTagReferencesAsync(Guid tagId);
+    Task MultiplyValuesForUserAsync(Guid userId, decimal factor);
 }
