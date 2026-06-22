@@ -50,3 +50,16 @@ public sealed class PerformanceHorizonResponse
     public int Year { get; set; }
     public List<PerformanceMonthResponse> Months { get; set; } = new();
 }
+
+public sealed class CostOfLivingMonthResponse
+{
+    public int Month { get; set; }
+    public decimal CostOfLiving { get; set; }
+}
+
+public sealed class CostOfLivingHorizonResponse
+{
+    public int Year { get; set; }
+    public decimal CostOfLiving { get; set; }
+    public List<CostOfLivingMonthResponse> Months { get; set; } = new();
+}
