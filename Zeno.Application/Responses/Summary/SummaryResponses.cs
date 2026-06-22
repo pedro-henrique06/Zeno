@@ -21,3 +21,20 @@ public sealed class SummaryResponse
     public int DaysInMonth { get; set; }
     public MovementsResponse Movements { get; set; } = new();
 }
+
+public sealed class EconomizedMonthResponse
+{
+    public int Month { get; set; }
+    public decimal EconomizedPercent { get; set; }
+    public decimal Economia { get; set; }
+    public decimal Entrada { get; set; }
+}
+
+public sealed class EconomizedHorizonResponse
+{
+    public int Year { get; set; }
+    public decimal EconomizedPercent { get; set; }
+    public decimal Economia { get; set; }
+    public decimal Entrada { get; set; }
+    public List<EconomizedMonthResponse> Months { get; set; } = new();
+}
