@@ -1,7 +1,5 @@
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 using System.Text.Json.Serialization;
 using Zeno.Application.Interfaces;
 using Zeno.Application.Requests;
@@ -69,31 +67,38 @@ public class AuthController : AppControllerBase
         if (providerLower != "google")
             return BadRequest(new { error = "Provedor OAuth não suportado." });
 
-        var redirectUrl = $"https://zeno-production-51bb.up.railway.app/api/auth/oauth/{providerLower}/callback";
-        var properties = new Microsoft.AspNetCore.Authentication.AuthenticationProperties
-        {
-            RedirectUri = redirectUrl,
-            IsPersistent = true
-        };
+        var clientId = _authService.GetGoogleClientId();
+        if (string.IsNullOrEmpty(clientId))
+            return StatusCode(500, new { error = "Login com Google não está configurado." });
 
-        return Challenge(properties, "Google");
+        var redirectUri = GetOAuthRedirectUri(providerLower);
+        var scope = Uri.EscapeDataString("openid email profile");
+        var authorizationUrl =
+            "https://accounts.google.com/o/oauth2/v2/auth" +
+            $"?client_id={Uri.EscapeDataString(clientId)}" +
+            $"&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
+            "&response_type=code" +
+            $"&scope={scope}" +
+            "&access_type=offline" +
+            "&prompt=select_account";
+
+        return Redirect(authorizationUrl);
     }
 
     [AllowAnonymous]
     [HttpGet("oauth/{provider}/callback")]
     public async Task<IActionResult> HandleOAuthCallback(string provider, [FromQuery] string? code, [FromQuery] string? error, [FromQuery] string? state)
     {
+        var frontendLoginUrl = $"{_authService.GetFrontendBaseUrl()}/login?oauthError=1";
+
         try
         {
-            if (!string.IsNullOrEmpty(error))
-                return BadRequest(new { error = $"OAuth error: {error}" });
-
-            if (string.IsNullOrEmpty(code))
-                return BadRequest(new { error = "Código de autorização não fornecido." });
+            if (!string.IsNullOrEmpty(error) || string.IsNullOrEmpty(code))
+                return Redirect(frontendLoginUrl);
 
             var clientId = _authService.GetGoogleClientId();
             var clientSecret = _authService.GetGoogleClientSecret();
-            var redirectUri = $"https://zeno-production-51bb.up.railway.app/api/auth/oauth/{provider}/callback";
+            var redirectUri = GetOAuthRedirectUri(provider);
 
             var tokenEndpoint = "https://oauth2.googleapis.com/token";
             var tokenRequest = new Dictionary<string, string>
@@ -110,23 +115,25 @@ public class AuthController : AppControllerBase
             var tokenData = await tokenResponse.Content.ReadFromJsonAsync<GoogleTokenResponse>();
 
             if (tokenData == null || string.IsNullOrEmpty(tokenData.access_token))
-                return Unauthorized(new { error = "Falha ao obter token do Google." });
+                return Redirect(frontendLoginUrl);
 
             var userInfoResponse = await client.GetAsync($"https://www.googleapis.com/oauth2/v2/userinfo?access_token={tokenData.access_token}");
             var userInfo = await userInfoResponse.Content.ReadFromJsonAsync<GoogleUserInfo>();
 
             if (userInfo == null)
-                return Unauthorized(new { error = "Falha ao obter informações do usuário." });
+                return Redirect(frontendLoginUrl);
 
             var result = await _authService.HandleOAuthCallbackAsync(provider, userInfo.id ?? "", userInfo.email ?? "", userInfo.name ?? "");
-            return Redirect($"https://zeno-production-51bb.up.railway.app/auth/callback?token={result.Token}&refreshToken={result.RefreshToken}");
+            return Redirect($"{_authService.GetFrontendBaseUrl()}/auth/callback?token={Uri.EscapeDataString(result.Token)}&refreshToken={Uri.EscapeDataString(result.RefreshToken)}");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[OAuth Callback Error] {ex}");
-            return StatusCode(500, new { error = "Erro interno no callback OAuth.", details = ex.Message });
+            return Redirect(frontendLoginUrl);
         }
     }
+
+    private string GetOAuthRedirectUri(string provider) => $"{_authService.GetApiBaseUrl()}/api/auth/oauth/{provider}/callback";
 
     [HttpPost("logout")]
     public Task<IActionResult> Logout()
