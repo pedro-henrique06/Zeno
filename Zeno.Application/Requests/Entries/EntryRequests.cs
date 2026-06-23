@@ -11,6 +11,7 @@ public sealed class CreateEntryRequest
     public Guid? TagId { get; set; }
     public DateTime Date { get; set; }
     public bool IsRecurring { get; set; }
+    public DateTime? RecurrenceEndDate { get; set; }
 }
 
 public sealed class UpdateEntryRequest
@@ -23,6 +24,7 @@ public sealed class UpdateEntryRequest
     public Guid? TagId { get; set; }
     public DateTime Date { get; set; }
     public bool IsRecurring { get; set; }
+    public DateTime? RecurrenceEndDate { get; set; }
 }
 
 public sealed class DeleteEntryRequest

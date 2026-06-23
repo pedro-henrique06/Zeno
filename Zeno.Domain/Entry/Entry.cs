@@ -22,5 +22,7 @@ public class Entry
 
     public bool IsRecurring { get; set; }
 
+    public DateTime? RecurrenceEndDate { get; set; }
+
     public Entry() { }
 }

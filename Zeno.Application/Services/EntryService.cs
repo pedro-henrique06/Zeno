@@ -91,7 +91,8 @@ public class EntryService : IEntryService
             Description = request.Description ?? string.Empty,
             TagId = request.TagId,
             Date = request.Date,
-            IsRecurring = request.IsRecurring
+            IsRecurring = request.IsRecurring,
+            RecurrenceEndDate = request.RecurrenceEndDate
         };
 
         await _entryRepository.CreateAsync(entry);
@@ -125,7 +126,8 @@ public class EntryService : IEntryService
             Description = request.Description ?? string.Empty,
             TagId = request.TagId,
             Date = request.Date,
-            IsRecurring = request.IsRecurring
+            IsRecurring = request.IsRecurring,
+            RecurrenceEndDate = request.RecurrenceEndDate
         };
 
         await _entryRepository.UpdateAsync(updatedEntry);
