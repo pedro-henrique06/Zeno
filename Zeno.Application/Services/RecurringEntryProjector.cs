@@ -16,6 +16,9 @@ public static class RecurringEntryProjector
                 var day = Math.Min(template.Date.Day, DateTime.DaysInMonth(cursor.Year, cursor.Month));
                 var occurrenceDate = new DateTime(cursor.Year, cursor.Month, day);
 
+                if (template.RecurrenceEndDate.HasValue && occurrenceDate > template.RecurrenceEndDate.Value)
+                    break;
+
                 if (occurrenceDate >= rangeStart && occurrenceDate < rangeEnd)
                 {
                     yield return new Entry
@@ -28,7 +31,8 @@ public static class RecurringEntryProjector
                         Description = template.Description,
                         TagId = template.TagId,
                         Date = occurrenceDate,
-                        IsRecurring = true
+                        IsRecurring = true,
+                        RecurrenceEndDate = template.RecurrenceEndDate
                     };
                 }
 
@@ -47,6 +51,9 @@ public static class RecurringEntryProjector
 
             while (cursor < before)
             {
+                if (template.RecurrenceEndDate.HasValue && cursor > template.RecurrenceEndDate.Value)
+                    break;
+
                 sum += template.Kind == EntryKind.Entrada ? template.Value : -template.Value;
                 cursor = cursor.AddMonths(1);
             }
