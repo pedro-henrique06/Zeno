@@ -283,4 +283,7 @@ public class AuthService : IAuthService
 
     public string GetGoogleClientId() => _configuration["OAuth:Google:ClientId"] ?? "";
     public string GetGoogleClientSecret() => _configuration["OAuth:Google:ClientSecret"] ?? "";
+
+    public string GetApiBaseUrl() => _configuration["App:ApiBaseUrl"] ?? "https://zeno-production-51bb.up.railway.app";
+    public string GetFrontendBaseUrl() => _configuration["App:FrontendUrl"] ?? "https://zeno-web-production.up.railway.app";
 }
