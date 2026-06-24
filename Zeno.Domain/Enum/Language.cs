@@ -1,5 +1,8 @@
+using System.Text.Json.Serialization;
+
 namespace Zeno.Domain.Enum;
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum Language
 {
     PtBR = 0,
