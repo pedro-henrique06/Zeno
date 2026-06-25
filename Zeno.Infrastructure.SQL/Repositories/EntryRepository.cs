@@ -37,7 +37,7 @@ public class EntryRepository : IEntryRepository
             .Limit(pageSize)
             .ToListAsync();
 
-        Console.WriteLine($"[DIAG GetByMonth] userId={userId} month={month} year={year} startDate={startDate:O} endDate={endDate:O} totalCount={totalCount}");
+        Console.WriteLine($"[DIAG GetByMonth] userId={userId} month={month} year={year} startDate={startDate:O} endDate={endDate:O} totalCount={totalCount} page={page} pageSize={pageSize} itemsCount={items.Count} itemDates=[{string.Join(",", items.Select(i => $"{i.Id}:{i.Date:O}:{i.Kind}"))}]");
 
         return (items, (int)totalCount);
     }
