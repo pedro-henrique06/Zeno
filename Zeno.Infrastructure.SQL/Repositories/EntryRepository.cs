@@ -37,6 +37,8 @@ public class EntryRepository : IEntryRepository
             .Limit(pageSize)
             .ToListAsync();
 
+        Console.WriteLine($"[DIAG GetByMonth] userId={userId} month={month} year={year} startDate={startDate:O} endDate={endDate:O} totalCount={totalCount}");
+
         return (items, (int)totalCount);
     }
 
@@ -79,6 +81,7 @@ public class EntryRepository : IEntryRepository
     public async Task<Entry> CreateAsync(Entry entry)
     {
         await _context.Entries.InsertOneAsync(entry);
+        Console.WriteLine($"[DIAG CreateAsync] userId={entry.UserId} id={entry.Id} date={entry.Date:O} kind={entry.Kind}");
         return entry;
     }
 
