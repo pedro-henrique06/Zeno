@@ -69,13 +69,12 @@ public class EntryRepository : IEntryRepository
 
     public async Task<decimal> GetSignedBalanceBeforeAsync(Guid userId, DateTime before)
     {
-        var result = await _context.Entries
-            .Aggregate()
-            .Match(x => x.UserId == userId && x.Date < before)
-            .Group(x => 1, g => new { Sum = g.Sum(e => e.Kind == EntryKind.Entrada ? e.Value : -e.Value) })
-            .FirstOrDefaultAsync();
+        // Value é criptografado no Mongo, então a soma não pode ser feita via aggregation pipeline ($group/$sum);
+        // os documentos precisam ser carregados e descriptografados antes de somar.
+        var filter = Builders<Entry>.Filter.Eq(x => x.UserId, userId) & Builders<Entry>.Filter.Lt(x => x.Date, before);
+        var entries = await _context.Entries.Find(filter).ToListAsync();
 
-        return result?.Sum ?? 0m;
+        return entries.Sum(e => e.Kind == EntryKind.Entrada ? e.Value : -e.Value);
     }
 
     public async Task<Entry> CreateAsync(Entry entry)
@@ -107,8 +106,18 @@ public class EntryRepository : IEntryRepository
 
     public async Task MultiplyValuesForUserAsync(Guid userId, decimal factor)
     {
+        // Value é criptografado no Mongo, então o operador $mul não pode atuar direto no banco;
+        // os documentos precisam ser carregados, recalculados e regravados em lote.
         var filter = Builders<Entry>.Filter.Eq(x => x.UserId, userId);
-        var update = Builders<Entry>.Update.Mul(x => x.Value, factor);
-        await _context.Entries.UpdateManyAsync(filter, update);
+        var entries = await _context.Entries.Find(filter).ToListAsync();
+        if (entries.Count == 0) return;
+
+        var writes = entries.Select(entry =>
+        {
+            entry.Value = Math.Round(entry.Value * factor, 2);
+            return new ReplaceOneModel<Entry>(Builders<Entry>.Filter.Eq(x => x.Id, entry.Id), entry);
+        });
+
+        await _context.Entries.BulkWriteAsync(writes);
     }
 }
