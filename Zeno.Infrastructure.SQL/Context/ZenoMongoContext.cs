@@ -2,10 +2,12 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
 using MongoDB.Driver;
+using Zeno.Application.Interfaces;
 using Zeno.Domain.User;
 using Zeno.Domain.Entry;
 using Zeno.Domain.Auth;
 using Zeno.Domain.Enum;
+using Zeno.Infrastructure.SQL.Serialization;
 using Tag = Zeno.Domain.Tag.Tag;
 using MonthlyExpenseCategory = Zeno.Domain.MonthlyExpenseCategory.MonthlyExpenseCategory;
 
@@ -23,10 +25,34 @@ public class ZenoMongoContext
         BsonSerializer.RegisterSerializer(typeof(Language), new EnumSerializer<Language>(BsonType.String));
     }
 
-    public ZenoMongoContext(string connectionString, string databaseName = "zeno_db")
+    public ZenoMongoContext(string connectionString, IEncryptionService encryptionService, string databaseName = "zeno_db")
     {
+        RegisterEncryptedClassMaps(encryptionService);
         _client = new MongoClient(connectionString);
         _database = _client.GetDatabase(databaseName);
+    }
+
+    private static void RegisterEncryptedClassMaps(IEncryptionService encryptionService)
+    {
+        var encryptedDecimal = new EncryptedDecimalSerializer(encryptionService);
+
+        if (!BsonClassMap.IsClassMapRegistered(typeof(Entry)))
+        {
+            BsonClassMap.RegisterClassMap<Entry>(cm =>
+            {
+                cm.AutoMap();
+                cm.GetMemberMap(e => e.Value).SetSerializer(encryptedDecimal);
+            });
+        }
+
+        if (!BsonClassMap.IsClassMapRegistered(typeof(User)))
+        {
+            BsonClassMap.RegisterClassMap<User>(cm =>
+            {
+                cm.AutoMap();
+                cm.GetMemberMap(u => u.DailyBudget).SetSerializer(new NullableSerializer<decimal>(encryptedDecimal));
+            });
+        }
     }
 
     public async Task CreateIndexesAsync()
