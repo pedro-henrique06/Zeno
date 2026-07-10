@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Zeno.Application.Interfaces;
 using Zeno.Application.Services;
+
 using Zeno.Infrastructure.SQL.Extentions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -95,7 +96,9 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddHttpClient<IExchangeRateService, ExchangeRateService>();
 
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
 builder.Services.AddSingleton<ITokenBlacklistService, TokenBlacklistService>();
+builder.Services.AddHostedService<Zeno.Services.DailyNotificationJob>();
 builder.Services.AddMemoryCache();
 
 builder.Services.AddHealthChecks();
