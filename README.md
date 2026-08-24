@@ -328,6 +328,52 @@ Campos:
 
 ---
 
+### 7. Notificacoes push (resumo diario)
+
+Para o push funcionar tres coisas precisam estar no lugar: o servidor com credencial do Firebase, o aparelho com o token registrado e a preferencia do usuario ligada.
+
+```
+POST   /api/notifications/devices           -> Registra (ou reativa) o token de push do aparelho
+DELETE /api/notifications/devices/{token}    -> Remove o token do aparelho
+GET    /api/notifications/preferences        -> Le a preferencia + diagnostico (pushConfigured, activeDevices)
+PUT    /api/notifications/preferences        -> Liga/desliga o resumo diario e define hora e fuso
+POST   /api/notifications/test               -> Dispara um push imediato para diagnosticar o setup
+```
+
+Corpo de `POST /api/notifications/devices`:
+
+```json
+{ "token": "<token do FCM>", "platform": 0 }
+```
+
+`platform`: 0 = Ios, 1 = Android, 2 = Web.
+
+Corpo de `PUT /api/notifications/preferences`:
+
+```json
+{ "dailyEnabled": true, "sendHour": 9, "timeZoneId": "America/Sao_Paulo" }
+```
+
+Resposta de `GET /api/notifications/preferences`:
+
+```json
+{
+  "success": true,
+  "data": {
+    "dailyEnabled": true,
+    "sendHour": 9,
+    "timeZoneId": "America/Sao_Paulo",
+    "lastSentOn": "2026-08-24",
+    "activeDevices": 1,
+    "pushConfigured": true
+  }
+}
+```
+
+`activeDevices: 0` significa que o app nunca registrou o token do aparelho — o toggle pode estar ligado que nada chega. `pushConfigured: false` significa que o servidor esta sem credencial. Use `POST /api/notifications/test` para confirmar o caminho ponta a ponta antes de esperar o resumo diario.
+
+---
+
 ## Modelo de Dados
 
 ### Diagrama de Entidades
@@ -343,6 +389,8 @@ Users
   |      |--< HomeWallets (WalletId FK, composite PK)
   |
   |--< RecurrentEntries (UserId FK)
+  |--< DeviceTokens (UserId FK)
+  |--< NotificationPreferences (UserId PK/FK, 1-para-1)
   |--< HomeMembers (UserId FK, composite PK)
          |
          Homes (HomeId FK from HomeMembers)
@@ -365,6 +413,8 @@ Users
 | **HomeMembers** | HomeId, UserId, Role, JoinedAt | (HomeId, UserId) | HomeId → Homes, UserId → Users |
 | **HomeWallets** | HomeId, WalletId | (HomeId, WalletId) | HomeId → Homes, WalletId → Wallets |
 | **HomeExpenses** | Id, HomeId, Title, Value, Category, Month, Year, CreatedAt | Id | HomeId → Homes |
+| **DeviceTokens** | Id, UserId, Token, Platform, IsActive, CreatedAt, LastSeenAt | Id | UserId → Users |
+| **NotificationPreferences** | UserId, DailyEnabled, SendHour, TimeZoneId, LastSentOn, CreatedAt, UpdatedAt | UserId | UserId → Users |
 
 ---
 
@@ -459,6 +509,19 @@ Classificacao de uso escolhida pelo usuario na criacao do lancamento, independen
 - Os outros 30% (desejos) e 20% (poupanca) sao informativos para o membro planejar suas financas pessoais.
 - A validacao **nao bloqueia** a criacao de despesas, apenas alerta.
 
+### Notificacoes push
+
+- O push depende de tres coisas ao mesmo tempo: credencial no servidor, token do aparelho registrado e a preferencia ligada. Se qualquer uma faltar, nada e enviado — por isso `GET /api/notifications/preferences` devolve `pushConfigured` e `activeDevices`, para o app conseguir dizer ao usuario **qual** das tres esta faltando.
+- O app deve registrar o token do aparelho em `POST /api/notifications/devices` a cada login e sempre que o provedor rotacionar o token.
+- O token e unico no sistema: se o mesmo aparelho for usado por outro usuario (logout/login), o registro e reatribuido em vez de duplicado, evitando que a notificacao de um usuario chegue no aparelho de outro.
+- `SendHour` e interpretado no fuso de `TimeZoneId` (padrao `America/Sao_Paulo`), nao em UTC.
+- Um `BackgroundService` varre as preferencias ativas a cada 5 minutos. O intervalo e curto porque a hora de envio e por usuario.
+- A comparacao de horario e `>=` e nao `==`: se a varredura atrasar (restart, fila), o resumo ainda sai no mesmo dia em vez de ser perdido.
+- `LastSentOn` guarda o ultimo **dia local** enviado, garantindo no maximo um resumo por dia por usuario.
+- Se o provedor recusar um token de forma definitiva (app desinstalado, token expirado), o token e desativado automaticamente e para de ser tentado.
+- O dia so e marcado como enviado quando ao menos um envio foi aceito; falha de rede deixa o dia em aberto para a proxima varredura.
+- Conteudo do resumo: se alguma carteira tem `DailyBudget`, a mensagem informa quanto ainda pode ser gasto por dia (orcamento restante do mes dividido pelos dias restantes) ou avisa que o orcamento estourou. Sem nenhum orcamento definido, informa o saldo total.
+
 ### Token e seguranca
 
 - Senhas armazenadas com hash BCrypt.
@@ -491,6 +554,13 @@ Classificacao de uso escolhida pelo usuario na criacao do lancamento, independen
   },
   "Encryption": {
     "Key": ""
+  },
+  "Push": {
+    "Firebase": {
+      "ProjectId": "",
+      "ClientEmail": "",
+      "PrivateKey": ""
+    }
   }
 }
 ```
@@ -541,6 +611,16 @@ dotnet user-secrets set "Database:ConnectionString" "Host=localhost;Port=5432;Da
 dotnet user-secrets set "Encryption:Key" "sua-chave-de-criptografia" --project Zeno/Zeno.csproj
 ```
 
+Para habilitar o push, os tres valores vem do JSON da service account do Firebase (Configuracoes do projeto → Contas de servico → Gerar nova chave privada), nos campos `project_id`, `client_email` e `private_key`:
+
+```bash
+dotnet user-secrets set "Push:Firebase:ProjectId" "seu-projeto" --project Zeno/Zeno.csproj
+dotnet user-secrets set "Push:Firebase:ClientEmail" "firebase-adminsdk-xxxxx@seu-projeto.iam.gserviceaccount.com" --project Zeno/Zeno.csproj
+dotnet user-secrets set "Push:Firebase:PrivateKey" "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n" --project Zeno/Zeno.csproj
+```
+
+Sem esses valores a API continua subindo normalmente: o envio vira log e `pushConfigured` responde `false`, deixando explicito que nenhuma notificacao sai. Para iOS, a chave do APNs precisa estar enviada no console do Firebase, senao o FCM aceita a requisicao mas o aparelho nao recebe.
+
 ### appsettings.json (sem valores reais)
 
 ```json
@@ -562,6 +642,13 @@ dotnet user-secrets set "Encryption:Key" "sua-chave-de-criptografia" --project Z
   },
   "Encryption": {
     "Key": ""
+  },
+  "Push": {
+    "Firebase": {
+      "ProjectId": "",
+      "ClientEmail": "",
+      "PrivateKey": ""
+    }
   }
 }
 ```

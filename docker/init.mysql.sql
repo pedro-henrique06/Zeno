@@ -167,3 +167,30 @@ CREATE TABLE IF NOT EXISTS RefreshTokens (
 
 CREATE INDEX IX_RefreshTokens_User ON RefreshTokens(UserId);
 CREATE INDEX IX_RefreshTokens_Token ON RefreshTokens(Token);
+
+CREATE TABLE IF NOT EXISTS DeviceTokens (
+    Id CHAR(36) PRIMARY KEY,
+    UserId CHAR(36) NOT NULL,
+    Token VARCHAR(500) NOT NULL,
+    Platform INT NOT NULL DEFAULT 0,
+    IsActive BOOLEAN NOT NULL DEFAULT TRUE,
+    CreatedAt DATETIME NOT NULL,
+    LastSeenAt DATETIME NOT NULL,
+    CONSTRAINT UQ_DeviceTokens_Token UNIQUE (Token),
+    CONSTRAINT FK_DeviceTokens_Users FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE INDEX IX_DeviceTokens_User ON DeviceTokens(UserId, IsActive);
+
+CREATE TABLE IF NOT EXISTS NotificationPreferences (
+    UserId CHAR(36) PRIMARY KEY,
+    DailyEnabled BOOLEAN NOT NULL DEFAULT FALSE,
+    SendHour INT NOT NULL DEFAULT 9,
+    TimeZoneId VARCHAR(100) NOT NULL DEFAULT 'America/Sao_Paulo',
+    LastSentOn DATE NULL,
+    CreatedAt DATETIME NOT NULL,
+    UpdatedAt DATETIME NOT NULL,
+    CONSTRAINT FK_NotificationPreferences_Users FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE INDEX IX_NotificationPreferences_Enabled ON NotificationPreferences(DailyEnabled);

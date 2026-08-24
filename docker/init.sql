@@ -167,3 +167,30 @@ CREATE TABLE IF NOT EXISTS RefreshTokens (
 
 CREATE INDEX IF NOT EXISTS IX_RefreshTokens_User ON RefreshTokens(UserId);
 CREATE INDEX IF NOT EXISTS IX_RefreshTokens_Token ON RefreshTokens(Token);
+
+CREATE TABLE IF NOT EXISTS DeviceTokens (
+    Id UUID PRIMARY KEY,
+    UserId UUID NOT NULL,
+    Token VARCHAR(500) NOT NULL,
+    Platform INT NOT NULL DEFAULT 0,
+    IsActive BOOLEAN NOT NULL DEFAULT TRUE,
+    CreatedAt TIMESTAMP NOT NULL,
+    LastSeenAt TIMESTAMP NOT NULL,
+    CONSTRAINT UQ_DeviceTokens_Token UNIQUE (Token),
+    CONSTRAINT FK_DeviceTokens_Users FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS IX_DeviceTokens_User ON DeviceTokens(UserId, IsActive);
+
+CREATE TABLE IF NOT EXISTS NotificationPreferences (
+    UserId UUID PRIMARY KEY,
+    DailyEnabled BOOLEAN NOT NULL DEFAULT FALSE,
+    SendHour INT NOT NULL DEFAULT 9,
+    TimeZoneId VARCHAR(100) NOT NULL DEFAULT 'America/Sao_Paulo',
+    LastSentOn DATE NULL,
+    CreatedAt TIMESTAMP NOT NULL,
+    UpdatedAt TIMESTAMP NOT NULL,
+    CONSTRAINT FK_NotificationPreferences_Users FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS IX_NotificationPreferences_Enabled ON NotificationPreferences(DailyEnabled);

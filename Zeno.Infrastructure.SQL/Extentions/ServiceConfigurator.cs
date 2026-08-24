@@ -25,6 +25,8 @@ public static class ServiceConfigurator
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<ICategoryRuleRepository, CategoryRuleRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IDeviceTokenRepository, DeviceTokenRepository>();
+        services.AddScoped<INotificationPreferenceRepository, NotificationPreferenceRepository>();
 
         return services;
     }

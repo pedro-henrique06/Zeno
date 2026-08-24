@@ -2,12 +2,14 @@ using System.Text;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Zeno.Application.Interfaces;
 using Zeno.Application.Services;
 using Zeno.Infrastructure.SQL.Extentions;
 using Zeno.Services;
+using Zeno.Services.Push;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -66,9 +68,34 @@ builder.Services.AddScoped<IBalanceService, BalanceService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IProjectionService, ProjectionService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddSingleton<ITokenBlacklistService, TokenBlacklistService>();
+builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddMemoryCache();
+
+builder.Services.Configure<PushOptions>(builder.Configuration.GetSection(PushOptions.SectionName));
+
+// A implementacao e escolhida na subida: sem credencial completa o envio vira log,
+// e a API passa a responder pushConfigured = false em vez de falhar silenciosamente.
+builder.Services.AddSingleton<IPushNotificationSender>(sp =>
+{
+    var pushOptions = sp.GetRequiredService<IOptions<PushOptions>>();
+
+    if (!pushOptions.Value.Firebase.IsComplete)
+        return new LoggingPushNotificationSender(sp.GetRequiredService<ILogger<LoggingPushNotificationSender>>());
+
+    // PooledConnectionLifetime evita DNS obsoleto num HttpClient de vida longa.
+    var handler = new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) };
+    var httpClient = new HttpClient(handler);
+
+    return new FirebasePushNotificationSender(
+        httpClient,
+        pushOptions,
+        sp.GetRequiredService<ILogger<FirebasePushNotificationSender>>());
+});
+
 builder.Services.AddHostedService<RecurringEntryHostedService>();
+builder.Services.AddHostedService<NotificationHostedService>();
 builder.Services.AddHealthChecks()
     .AddNpgSql(builder.Configuration["Database:ConnectionString"]!, name: "postgresql", tags: new[] { "db", "postgres" });
 
