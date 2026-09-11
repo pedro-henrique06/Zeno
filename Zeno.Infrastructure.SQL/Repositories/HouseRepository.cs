@@ -1,4 +1,5 @@
 using MongoDB.Driver;
+using Zeno.Domain.House;
 using Zeno.Domain.Interfaces;
 using Zeno.Infrastructure.SQL.Context;
 using HouseEntity = Zeno.Domain.House.House;
@@ -21,8 +22,11 @@ public class HouseRepository : IHouseRepository
 
     public async Task<IEnumerable<HouseEntity>> GetByUserAsync(Guid userId)
     {
+        var builder = Builders<HouseEntity>.Filter;
+        var filter = builder.Eq(x => x.UserId, userId)
+                   | builder.ElemMatch(x => x.Members, m => m.UserId == userId);
         return await _context.Houses
-            .Find(x => x.UserId == userId)
+            .Find(filter)
             .SortBy(x => x.Name)
             .ToListAsync();
     }
@@ -43,5 +47,19 @@ public class HouseRepository : IHouseRepository
     public async Task DeleteAsync(Guid id)
     {
         await _context.Houses.DeleteOneAsync(x => x.Id == id);
+    }
+
+    public async Task AddMemberAsync(Guid houseId, HouseMember member)
+    {
+        var filter = Builders<HouseEntity>.Filter.Eq(x => x.Id, houseId);
+        var update = Builders<HouseEntity>.Update.Push(x => x.Members, member);
+        await _context.Houses.UpdateOneAsync(filter, update);
+    }
+
+    public async Task RemoveMemberAsync(Guid houseId, Guid memberId)
+    {
+        var filter = Builders<HouseEntity>.Filter.Eq(x => x.Id, houseId);
+        var update = Builders<HouseEntity>.Update.PullFilter(x => x.Members, m => m.UserId == memberId);
+        await _context.Houses.UpdateOneAsync(filter, update);
     }
 }
