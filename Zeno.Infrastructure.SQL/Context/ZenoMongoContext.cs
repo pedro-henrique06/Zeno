@@ -10,6 +10,7 @@ using Zeno.Domain.Enum;
 using Zeno.Infrastructure.SQL.Serialization;
 using Tag = Zeno.Domain.Tag.Tag;
 using House = Zeno.Domain.House.House;
+using HouseMember = Zeno.Domain.House.HouseMember;
 using MonthlyExpenseCategory = Zeno.Domain.MonthlyExpenseCategory.MonthlyExpenseCategory;
 using PushSubscription = Zeno.Domain.Push.PushSubscription;
 
@@ -37,6 +38,7 @@ public class ZenoMongoContext
     private static void RegisterEncryptedClassMaps(IEncryptionService encryptionService)
     {
         var encryptedDecimal = new EncryptedDecimalSerializer(encryptionService);
+        var encryptedString = new EncryptedStringSerializer(encryptionService);
 
         if (!BsonClassMap.IsClassMapRegistered(typeof(Entry)))
         {
@@ -44,6 +46,8 @@ public class ZenoMongoContext
             {
                 cm.AutoMap();
                 cm.GetMemberMap(e => e.Value).SetSerializer(encryptedDecimal);
+                cm.GetMemberMap(e => e.Title).SetSerializer(encryptedString);
+                cm.GetMemberMap(e => e.Description).SetSerializer(encryptedString);
             });
         }
 
@@ -53,6 +57,29 @@ public class ZenoMongoContext
             {
                 cm.AutoMap();
                 cm.GetMemberMap(u => u.DailyBudget).SetSerializer(new NullableSerializer<decimal>(encryptedDecimal));
+                cm.GetMemberMap(u => u.Name).SetSerializer(encryptedString);
+                cm.GetMemberMap(u => u.Phone).SetSerializer(encryptedString);
+                cm.GetMemberMap(u => u.Document).SetSerializer(encryptedString);
+            });
+        }
+
+        if (!BsonClassMap.IsClassMapRegistered(typeof(House)))
+        {
+            BsonClassMap.RegisterClassMap<House>(cm =>
+            {
+                cm.AutoMap();
+                cm.GetMemberMap(h => h.Name).SetSerializer(encryptedString);
+                cm.GetMemberMap(h => h.Description).SetSerializer(encryptedString);
+            });
+        }
+
+        if (!BsonClassMap.IsClassMapRegistered(typeof(HouseMember)))
+        {
+            BsonClassMap.RegisterClassMap<HouseMember>(cm =>
+            {
+                cm.AutoMap();
+                cm.GetMemberMap(m => m.Name).SetSerializer(encryptedString);
+                cm.GetMemberMap(m => m.Email).SetSerializer(encryptedString);
             });
         }
     }
