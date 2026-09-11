@@ -12,4 +12,6 @@ public interface IHouseService
     Task UpdateAsync(Guid userId, UpdateHouseRequest request);
     Task DeleteAsync(Guid userId, Guid id);
     Task<IEnumerable<EntryEntity>> GetEntriesAsync(Guid userId, Guid houseId);
+    Task AddMemberAsync(Guid requestingUserId, Guid houseId, string email);
+    Task RemoveMemberAsync(Guid requestingUserId, Guid houseId, Guid memberId);
 }

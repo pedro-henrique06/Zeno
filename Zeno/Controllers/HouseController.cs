@@ -68,4 +68,22 @@ public class HouseController : AppControllerBase
         var result = await _service.GetEntriesAsync(userId, id);
         return Ok(ApiResponse<IEnumerable<Entry>>.Ok(result));
     }
+
+    [HttpPost("{id:guid}/members")]
+    public async Task<IActionResult> AddMember(Guid id, [FromBody] AddHouseMemberRequest request)
+    {
+        var userId = GetUserId();
+        return await HandleAsync(
+            () => _service.AddMemberAsync(userId, id, request.Email),
+            NoContent());
+    }
+
+    [HttpDelete("{id:guid}/members/{memberId:guid}")]
+    public async Task<IActionResult> RemoveMember(Guid id, Guid memberId)
+    {
+        var userId = GetUserId();
+        return await HandleAsync(
+            () => _service.RemoveMemberAsync(userId, id, memberId),
+            NoContent());
+    }
 }

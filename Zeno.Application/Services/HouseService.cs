@@ -1,7 +1,9 @@
 using FluentValidation;
+using FluentValidation.Results;
 using Zeno.Application.Exceptions;
 using Zeno.Application.Interfaces;
 using Zeno.Application.Requests.Houses;
+using Zeno.Domain.House;
 using Zeno.Domain.Interfaces;
 using HouseEntity = Zeno.Domain.House.House;
 using EntryEntity = Zeno.Domain.Entry.Entry;
@@ -14,17 +16,20 @@ public class HouseService : IHouseService
     private readonly IValidator<UpdateHouseRequest> _updateValidator;
     private readonly IHouseRepository _houseRepository;
     private readonly IEntryRepository _entryRepository;
+    private readonly IUserRepository _userRepository;
 
     public HouseService(
         IValidator<CreateHouseRequest> createValidator,
         IValidator<UpdateHouseRequest> updateValidator,
         IHouseRepository houseRepository,
-        IEntryRepository entryRepository)
+        IEntryRepository entryRepository,
+        IUserRepository userRepository)
     {
         _createValidator = createValidator;
         _updateValidator = updateValidator;
         _houseRepository = houseRepository;
         _entryRepository = entryRepository;
+        _userRepository = userRepository;
     }
 
     public async Task<IEnumerable<HouseEntity>> GetAllAsync(Guid userId)
@@ -35,7 +40,9 @@ public class HouseService : IHouseService
     public async Task<HouseEntity?> GetByIdAsync(Guid userId, Guid id)
     {
         var house = await _houseRepository.GetByIdAsync(id);
-        return house is not null && house.UserId == userId ? house : null;
+        if (house is null) return null;
+        bool canAccess = house.UserId == userId || house.Members.Any(m => m.UserId == userId);
+        return canAccess ? house : null;
     }
 
     public async Task<HouseEntity> CreateAsync(Guid userId, CreateHouseRequest request)
@@ -65,8 +72,8 @@ public class HouseService : IHouseService
 
         var existing = await _houseRepository.GetByIdAsync(request.Id);
         if (existing is null || existing.UserId != userId)
-            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
-                new List<FluentValidation.Results.ValidationFailure>
+            throw new AppValidationException(new ValidationResult(
+                new List<ValidationFailure>
                 {
                     new(nameof(request.Id), "Casa não encontrada.")
                 }));
@@ -80,8 +87,8 @@ public class HouseService : IHouseService
     {
         var existing = await _houseRepository.GetByIdAsync(id);
         if (existing is null || existing.UserId != userId)
-            throw new AppValidationException(new FluentValidation.Results.ValidationResult(
-                new List<FluentValidation.Results.ValidationFailure>
+            throw new AppValidationException(new ValidationResult(
+                new List<ValidationFailure>
                 {
                     new(nameof(id), "Casa não encontrada.")
                 }));
@@ -92,9 +99,60 @@ public class HouseService : IHouseService
     public async Task<IEnumerable<EntryEntity>> GetEntriesAsync(Guid userId, Guid houseId)
     {
         var house = await _houseRepository.GetByIdAsync(houseId);
-        if (house is null || house.UserId != userId)
-            return Enumerable.Empty<EntryEntity>();
+        if (house is null) return Enumerable.Empty<EntryEntity>();
 
-        return await _entryRepository.GetRecurringByHouseAsync(userId, houseId);
+        bool isOwner = house.UserId == userId;
+        bool isMember = house.Members.Any(m => m.UserId == userId);
+        if (!isOwner && !isMember) return Enumerable.Empty<EntryEntity>();
+
+        // Always query entries using the owner's userId
+        return await _entryRepository.GetRecurringByHouseAsync(house.UserId, houseId);
+    }
+
+    public async Task AddMemberAsync(Guid requestingUserId, Guid houseId, string email)
+    {
+        var house = await _houseRepository.GetByIdAsync(houseId);
+        if (house is null || house.UserId != requestingUserId)
+            throw new AppValidationException(new ValidationResult(
+                new List<ValidationFailure> { new("houseId", "Casa não encontrada.") }));
+
+        var targetUser = await _userRepository.GetByEmailAsync(email.Trim().ToLower());
+        if (targetUser is null)
+            throw new AppValidationException(new ValidationResult(
+                new List<ValidationFailure> { new("email", "Usuário não encontrado com este e-mail.") }));
+
+        if (targetUser.Id == requestingUserId)
+            throw new AppValidationException(new ValidationResult(
+                new List<ValidationFailure> { new("email", "Você já é o proprietário desta casa.") }));
+
+        if (house.Members.Any(m => m.UserId == targetUser.Id))
+            throw new AppValidationException(new ValidationResult(
+                new List<ValidationFailure> { new("email", "Este usuário já é membro desta casa.") }));
+
+        var member = new HouseMember
+        {
+            UserId = targetUser.Id,
+            Email = targetUser.Email,
+            Name = targetUser.Name,
+            JoinedAt = DateTime.UtcNow
+        };
+
+        await _houseRepository.AddMemberAsync(houseId, member);
+    }
+
+    public async Task RemoveMemberAsync(Guid requestingUserId, Guid houseId, Guid memberId)
+    {
+        var house = await _houseRepository.GetByIdAsync(houseId);
+        if (house is null) return;
+
+        // Owner can remove anyone; a member can only remove themselves
+        bool isOwner = house.UserId == requestingUserId;
+        bool isSelf = requestingUserId == memberId;
+
+        if (!isOwner && !isSelf)
+            throw new AppValidationException(new ValidationResult(
+                new List<ValidationFailure> { new("memberId", "Sem permissão para remover este membro.") }));
+
+        await _houseRepository.RemoveMemberAsync(houseId, memberId);
     }
 }
