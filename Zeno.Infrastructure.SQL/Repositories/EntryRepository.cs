@@ -97,6 +97,19 @@ public class EntryRepository : IEntryRepository
         await _context.Entries.DeleteOneAsync(filter);
     }
 
+    public async Task<IEnumerable<Entry>> GetRecurringByHouseAsync(Guid userId, Guid houseId)
+    {
+        var builder = Builders<Entry>.Filter;
+        var filter = builder.Eq(x => x.UserId, userId)
+                   & builder.Eq(x => x.IsRecurring, true)
+                   & builder.Eq(x => x.HouseId, houseId);
+
+        return await _context.Entries
+            .Find(filter)
+            .SortBy(x => x.Date)
+            .ToListAsync();
+    }
+
     public async Task ClearTagReferencesAsync(Guid tagId)
     {
         var filter = Builders<Entry>.Filter.Eq(x => x.TagId, tagId);

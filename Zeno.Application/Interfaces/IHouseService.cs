@@ -1,5 +1,6 @@
 using Zeno.Application.Requests.Houses;
 using HouseEntity = Zeno.Domain.House.House;
+using EntryEntity = Zeno.Domain.Entry.Entry;
 
 namespace Zeno.Application.Interfaces;
 
@@ -10,4 +11,5 @@ public interface IHouseService
     Task<HouseEntity> CreateAsync(Guid userId, CreateHouseRequest request);
     Task UpdateAsync(Guid userId, UpdateHouseRequest request);
     Task DeleteAsync(Guid userId, Guid id);
+    Task<IEnumerable<EntryEntity>> GetEntriesAsync(Guid userId, Guid houseId);
 }

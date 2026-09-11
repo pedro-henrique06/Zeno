@@ -4,6 +4,7 @@ using Zeno.Application.Interfaces;
 using Zeno.Application.Requests.Houses;
 using Zeno.Domain.Interfaces;
 using HouseEntity = Zeno.Domain.House.House;
+using EntryEntity = Zeno.Domain.Entry.Entry;
 
 namespace Zeno.Application.Services;
 
@@ -12,15 +13,18 @@ public class HouseService : IHouseService
     private readonly IValidator<CreateHouseRequest> _createValidator;
     private readonly IValidator<UpdateHouseRequest> _updateValidator;
     private readonly IHouseRepository _houseRepository;
+    private readonly IEntryRepository _entryRepository;
 
     public HouseService(
         IValidator<CreateHouseRequest> createValidator,
         IValidator<UpdateHouseRequest> updateValidator,
-        IHouseRepository houseRepository)
+        IHouseRepository houseRepository,
+        IEntryRepository entryRepository)
     {
         _createValidator = createValidator;
         _updateValidator = updateValidator;
         _houseRepository = houseRepository;
+        _entryRepository = entryRepository;
     }
 
     public async Task<IEnumerable<HouseEntity>> GetAllAsync(Guid userId)
@@ -83,5 +87,14 @@ public class HouseService : IHouseService
                 }));
 
         await _houseRepository.DeleteAsync(id);
+    }
+
+    public async Task<IEnumerable<EntryEntity>> GetEntriesAsync(Guid userId, Guid houseId)
+    {
+        var house = await _houseRepository.GetByIdAsync(houseId);
+        if (house is null || house.UserId != userId)
+            return Enumerable.Empty<EntryEntity>();
+
+        return await _entryRepository.GetRecurringByHouseAsync(userId, houseId);
     }
 }

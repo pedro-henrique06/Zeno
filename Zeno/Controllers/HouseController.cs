@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Zeno.Application.Interfaces;
 using Zeno.Application.Requests.Houses;
 using Zeno.Application.Responses.Common;
+using Zeno.Domain.Entry;
 using Zeno.Domain.House;
 
 namespace Zeno.Controllers;
@@ -58,5 +59,13 @@ public class HouseController : AppControllerBase
         return await HandleAsync(
             () => _service.DeleteAsync(userId, id),
             NoContent());
+    }
+
+    [HttpGet("{id:guid}/entries")]
+    public async Task<IActionResult> GetEntries(Guid id)
+    {
+        var userId = GetUserId();
+        var result = await _service.GetEntriesAsync(userId, id);
+        return Ok(ApiResponse<IEnumerable<Entry>>.Ok(result));
     }
 }
