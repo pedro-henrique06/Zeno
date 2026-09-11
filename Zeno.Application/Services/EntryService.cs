@@ -55,17 +55,32 @@ public class EntryService : IEntryService
             throw new AppValidationException(validation);
 
         var pageSize = Math.Min(query.PageSize, 100);
+        var startDate = new DateTime(query.Year!.Value, query.Month!.Value, 1);
+        var endDate = startDate.AddMonths(1);
 
-        (var items, int totalCount) = await _entryRepository.GetByMonthForUserPagedAsync(
-            query.Month!.Value,
-            query.Year!.Value,
-            userId,
-            query.Page,
-            pageSize);
+        // Entradas com Date dentro do mês (inclui a ocorrência original de recorrentes criadas neste mês)
+        var regularItems = await _entryRepository.GetByUserInRangeAsync(userId, startDate, endDate);
+
+        // Recorrências criadas em meses anteriores, projetadas no mês solicitado
+        var recurringTemplates = await _entryRepository.GetRecurringBeforeAsync(userId, startDate);
+        var recurringOccurrences = RecurringEntryProjector.ExpandOccurrencesInRange(recurringTemplates, startDate, endDate);
+
+        // Mescla, ordena e pagina em memória
+        var allItems = regularItems
+            .Concat(recurringOccurrences)
+            .OrderByDescending(x => x.Date)
+            .ThenByDescending(x => x.Id)
+            .ToList();
+
+        var totalCount = allItems.Count;
+        var pagedItems = allItems
+            .Skip((query.Page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
 
         return new PagedResponse<Entry>
         {
-            Items = items.ToList(),
+            Items = pagedItems,
             Page = query.Page,
             PageSize = pageSize,
             TotalItems = totalCount,
