@@ -20,6 +20,7 @@ public static class ServiceConfigurator
         services.AddScoped<IMonthlyExpenseCategoryRepository, MonthlyExpenseCategoryRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IPushSubscriptionRepository, PushSubscriptionRepository>();
+        services.AddScoped<IHouseRepository, HouseRepository>();
 
         return services;
     }

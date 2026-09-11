@@ -24,5 +24,7 @@ public class Entry
 
     public DateTime? RecurrenceEndDate { get; set; }
 
+    public Guid? HouseId { get; set; }
+
     public Entry() { }
 }

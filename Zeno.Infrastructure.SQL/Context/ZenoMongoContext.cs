@@ -9,6 +9,7 @@ using Zeno.Domain.Auth;
 using Zeno.Domain.Enum;
 using Zeno.Infrastructure.SQL.Serialization;
 using Tag = Zeno.Domain.Tag.Tag;
+using House = Zeno.Domain.House.House;
 using MonthlyExpenseCategory = Zeno.Domain.MonthlyExpenseCategory.MonthlyExpenseCategory;
 using PushSubscription = Zeno.Domain.Push.PushSubscription;
 
@@ -84,6 +85,9 @@ public class ZenoMongoContext
             new CreateIndexOptions { Unique = true }));
         await PushSubscriptions.Indexes.CreateOneAsync(new CreateIndexModel<PushSubscription>(
             Builders<PushSubscription>.IndexKeys.Ascending(x => x.UserId)));
+
+        await Houses.Indexes.CreateOneAsync(new CreateIndexModel<House>(
+            Builders<House>.IndexKeys.Ascending(x => x.UserId)));
     }
 
     public IMongoCollection<User> Users => _database.GetCollection<User>("users");
@@ -92,4 +96,5 @@ public class ZenoMongoContext
     public IMongoCollection<RefreshToken> RefreshTokens => _database.GetCollection<RefreshToken>("refreshtokens");
     public IMongoCollection<MonthlyExpenseCategory> MonthlyExpenseCategories => _database.GetCollection<MonthlyExpenseCategory>("monthlyexpensecategories");
     public IMongoCollection<PushSubscription> PushSubscriptions => _database.GetCollection<PushSubscription>("pushsubscriptions");
+    public IMongoCollection<House> Houses => _database.GetCollection<House>("houses");
 }
