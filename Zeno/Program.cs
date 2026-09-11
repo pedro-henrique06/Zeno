@@ -95,6 +95,7 @@ builder.Services.AddScoped<ISummaryService, SummaryService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddHttpClient<IExchangeRateService, ExchangeRateService>();
 
+builder.Services.AddScoped<IHouseService, HouseService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
 builder.Services.AddSingleton<ITokenBlacklistService, TokenBlacklistService>();

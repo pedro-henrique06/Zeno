@@ -12,6 +12,7 @@ public sealed class CreateEntryRequest
     public DateTime Date { get; set; }
     public bool IsRecurring { get; set; }
     public DateTime? RecurrenceEndDate { get; set; }
+    public Guid? HouseId { get; set; }
 }
 
 public sealed class UpdateEntryRequest
@@ -25,6 +26,7 @@ public sealed class UpdateEntryRequest
     public DateTime Date { get; set; }
     public bool IsRecurring { get; set; }
     public DateTime? RecurrenceEndDate { get; set; }
+    public Guid? HouseId { get; set; }
 }
 
 public sealed class DeleteEntryRequest

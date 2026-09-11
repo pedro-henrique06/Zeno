@@ -107,7 +107,8 @@ public class EntryService : IEntryService
             TagId = request.TagId,
             Date = request.Date,
             IsRecurring = request.IsRecurring,
-            RecurrenceEndDate = request.RecurrenceEndDate
+            RecurrenceEndDate = request.RecurrenceEndDate,
+            HouseId = request.HouseId
         };
 
         await _entryRepository.CreateAsync(entry);
@@ -142,7 +143,8 @@ public class EntryService : IEntryService
             TagId = request.TagId,
             Date = request.Date,
             IsRecurring = request.IsRecurring,
-            RecurrenceEndDate = request.RecurrenceEndDate
+            RecurrenceEndDate = request.RecurrenceEndDate,
+            HouseId = request.HouseId
         };
 
         await _entryRepository.UpdateAsync(updatedEntry);
