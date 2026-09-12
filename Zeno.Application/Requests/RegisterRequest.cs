@@ -1,3 +1,5 @@
+using Zeno.Domain.Enum;
+
 namespace Zeno.Application.Requests;
 
 public class RegisterRequest
@@ -9,4 +11,6 @@ public class RegisterRequest
     public string? Phone { get; set; }
     public string? Document { get; set; }
     public DateTime? BirthDate { get; set; }
+    public Currency? Currency { get; set; }
+    public Language? Language { get; set; }
 }

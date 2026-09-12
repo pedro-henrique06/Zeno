@@ -1,3 +1,5 @@
+using Zeno.Domain.Enum;
+
 namespace Zeno.Domain.User;
 
 public enum OAuthProvider
@@ -20,4 +22,7 @@ public class User
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
     public bool EmailVerified { get; set; } = false;
+    public decimal? DailyBudget { get; set; }
+    public Currency Currency { get; set; } = Currency.BRL;
+    public Language Language { get; set; } = Language.PtBR;
 }

@@ -14,17 +14,12 @@ public class CreateEntryRequestValidator : AbstractValidator<CreateEntryRequest>
         RuleFor(x => x.Value)
             .GreaterThan(0).WithMessage("O valor deve ser maior que zero.");
 
-        RuleFor(x => x.Type)
-            .IsInEnum().WithMessage("O tipo de entrada é inválido.");
-
         RuleFor(x => x.Kind)
             .IsInEnum().WithMessage("O tipo de lançamento é inválido.");
 
-        RuleFor(x => x.Category)
-            .IsInEnum().WithMessage("A categoria é inválida.");
-
-        RuleFor(x => x.WalletId)
-            .NotEmpty().WithMessage("A carteira é obrigatória.");
+        RuleFor(x => x.RecurrenceEndDate)
+            .GreaterThan(x => x.Date).WithMessage("A data de término da recorrência deve ser posterior à data do lançamento.")
+            .When(x => x.IsRecurring && x.RecurrenceEndDate.HasValue);
     }
 }
 
@@ -42,17 +37,12 @@ public class UpdateEntryRequestValidator : AbstractValidator<UpdateEntryRequest>
         RuleFor(x => x.Value)
             .GreaterThan(0).WithMessage("O valor deve ser maior que zero.");
 
-        RuleFor(x => x.Type)
-            .IsInEnum().WithMessage("O tipo de entrada é inválido.");
-
         RuleFor(x => x.Kind)
             .IsInEnum().WithMessage("O tipo de lançamento é inválido.");
 
-        RuleFor(x => x.Category)
-            .IsInEnum().WithMessage("A categoria é inválida.");
-
-        RuleFor(x => x.WalletId)
-            .NotEmpty().WithMessage("A carteira é obrigatória.");
+        RuleFor(x => x.RecurrenceEndDate)
+            .GreaterThan(x => x.Date).WithMessage("A data de término da recorrência deve ser posterior à data do lançamento.")
+            .When(x => x.IsRecurring && x.RecurrenceEndDate.HasValue);
     }
 }
 

@@ -12,4 +12,6 @@ public interface IAuthService
     Task<AuthResponse> RefreshTokenAsync(string refreshToken);
     string GetGoogleClientId();
     string GetGoogleClientSecret();
+    string GetApiBaseUrl();
+    string GetFrontendBaseUrl();
 }

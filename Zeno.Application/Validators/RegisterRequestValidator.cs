@@ -39,5 +39,13 @@ public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
         RuleFor(x => x.BirthDate)
             .LessThan(DateTime.UtcNow.AddYears(-13)).WithMessage("O usuário deve ter pelo menos 13 anos.")
             .When(x => x.BirthDate.HasValue);
+
+        RuleFor(x => x.Currency)
+            .IsInEnum().WithMessage("Moeda inválida.")
+            .When(x => x.Currency.HasValue);
+
+        RuleFor(x => x.Language)
+            .IsInEnum().WithMessage("Idioma inválido.")
+            .When(x => x.Language.HasValue);
     }
 }
