@@ -2,55 +2,18 @@ using System.Text;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Zeno.Application.Interfaces;
 using Zeno.Application.Services;
-
 using Zeno.Infrastructure.SQL.Extentions;
+using Zeno.Services;
+using Zeno.Services.Push;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ============================================
-// VALIDAÇÃO DE CONFIGURAÇÃO OBRIGATÓRIA
-// ============================================
-var requiredConfigs = new Dictionary<string, string>
-{
-    { "Jwt:Key", builder.Configuration["Jwt:Key"] ?? "" },
-    { "Jwt:Issuer", builder.Configuration["Jwt:Issuer"] ?? "" },
-    { "Database:ConnectionString", builder.Configuration["Database:ConnectionString"] ?? "" },
-    { "Encryption:Key", builder.Configuration["Encryption:Key"] ?? "" }
-};
-
-var missingConfigs = requiredConfigs.Where(c => string.IsNullOrWhiteSpace(c.Value)).Select(c => c.Key).ToList();
-
-if (missingConfigs.Any())
-{
-    var errorMessage = $"[CONFIG ERROR] Configurações obrigatórias faltando: {string.Join(", ", missingConfigs)}\n" +
-                       "Por favor, configure as seguintes variáveis de ambiente:\n" +
-                       "  - Jwt__Key (mínimo 32 caracteres)\n" +
-                       "  - Jwt__Issuer\n" +
-                       "  - Database__ConnectionString\n" +
-                       "  - Encryption__Key";
-    throw new InvalidOperationException(errorMessage);
-}
-
-// Validação específica para JWT Key (mínimo 32 caracteres)
 var jwtKey = builder.Configuration["Jwt:Key"]!;
-if (jwtKey.Length < 32)
-{
-    throw new InvalidOperationException($"[CONFIG ERROR] Jwt:Key deve ter pelo menos 32 caracteres. Tamanho atual: {jwtKey.Length}");
-}
-
-// Validação da string de conexão do banco de dados
-var dbConnectionString = builder.Configuration["Database:ConnectionString"]!;
-if (!string.IsNullOrEmpty(dbConnectionString) && dbConnectionString.Contains("Host=") && dbConnectionString.Contains("Port="))
-{
-    throw new InvalidOperationException(
-        "[CONFIG ERROR] A string de conexão parece ser PostgreSQL/MySQL, mas o banco de dados atual é MongoDB.\n" +
-        "Por favor, use uma string de conexão MongoDB (ex: mongodb://user:pass@host:port/database)");
-}
-
 var jwtIssuer = builder.Configuration["Jwt:Issuer"]!;
 var jwtExpireHours = int.Parse(builder.Configuration["Jwt:ExpireHours"] ?? "2");
 
@@ -88,21 +51,53 @@ builder.Services.AddValidatorsFromAssemblyContaining<Zeno.Application.Validators
 var connStr = builder.Configuration["Database:ConnectionString"]!;
 builder.Services.AddInfrastructureSQL(connStr, builder.Configuration["Encryption:Key"]!);
 builder.Services.AddScoped<IEntryService, EntryService>();
-builder.Services.AddScoped<ITagService, TagService>();
-builder.Services.AddScoped<IMonthlyExpenseCategoryService, MonthlyExpenseCategoryService>();
+builder.Services.AddScoped<IWalletService, WalletService>();
+builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddScoped<IHomeService, HomeService>();
+builder.Services.AddScoped<IHomeMemberService, HomeMemberService>();
+builder.Services.AddScoped<IHomeExpenseService, HomeExpenseService>();
+builder.Services.AddScoped<IHomeSplitService, HomeSplitService>();
+builder.Services.AddScoped<IHomeBudgetService, HomeBudgetService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IFinancialGoalService, FinancialGoalService>();
+builder.Services.AddScoped<IDebtService, DebtService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<ICategoryRuleService, CategoryRuleService>();
+builder.Services.AddScoped<IRecurringEntryService, RecurringEntryService>();
 builder.Services.AddScoped<IBalanceService, BalanceService>();
-builder.Services.AddScoped<ISummaryService, SummaryService>();
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddHttpClient<IExchangeRateService, ExchangeRateService>();
-
-builder.Services.AddScoped<IHouseService, HouseService>();
+builder.Services.AddScoped<IProjectionService, ProjectionService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddSingleton<ITokenBlacklistService, TokenBlacklistService>();
-builder.Services.AddHostedService<Zeno.Services.DailyNotificationJob>();
+builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddMemoryCache();
 
-builder.Services.AddHealthChecks();
+builder.Services.Configure<PushOptions>(builder.Configuration.GetSection(PushOptions.SectionName));
+
+// A implementacao e escolhida na subida: sem credencial completa o envio vira log,
+// e a API passa a responder pushConfigured = false em vez de falhar silenciosamente.
+builder.Services.AddSingleton<IPushNotificationSender>(sp =>
+{
+    var pushOptions = sp.GetRequiredService<IOptions<PushOptions>>();
+
+    if (!pushOptions.Value.Firebase.IsComplete)
+        return new LoggingPushNotificationSender(sp.GetRequiredService<ILogger<LoggingPushNotificationSender>>());
+
+    // PooledConnectionLifetime evita DNS obsoleto num HttpClient de vida longa.
+    var handler = new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) };
+    var httpClient = new HttpClient(handler);
+
+    return new FirebasePushNotificationSender(
+        httpClient,
+        pushOptions,
+        sp.GetRequiredService<ILogger<FirebasePushNotificationSender>>());
+});
+
+builder.Services.AddHostedService<RecurringEntryHostedService>();
+builder.Services.AddHostedService<NotificationHostedService>();
+builder.Services.AddHealthChecks()
+    .AddNpgSql(builder.Configuration["Database:ConnectionString"]!, name: "postgresql", tags: new[] { "db", "postgres" });
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
@@ -161,12 +156,6 @@ builder.Services.AddCors(options =>
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
-
-using (var scope = app.Services.CreateScope())
-{
-    var mongoContext = scope.ServiceProvider.GetRequiredService<Zeno.Infrastructure.SQL.Context.ZenoMongoContext>();
-    await mongoContext.CreateIndexesAsync();
-}
 
 app.UseSwagger();
 app.UseSwaggerUI(c =>
