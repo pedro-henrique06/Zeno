@@ -126,6 +126,7 @@ builder.Services.AddSingleton<IPushNotificationSender>(sp =>
 });
 
 builder.Services.AddHostedService<NotificationHostedService>();
+builder.Services.AddHostedService<DailyNotificationJob>();
 builder.Services.AddHealthChecks();
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
