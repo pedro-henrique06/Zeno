@@ -19,7 +19,7 @@ public class NotificationService : INotificationService
     private readonly IValidator<UpdateNotificationPreferenceRequest> _preferenceValidator;
     private readonly IDeviceTokenRepository _deviceTokenRepository;
     private readonly INotificationPreferenceRepository _preferenceRepository;
-    private readonly IWalletRepository _walletRepository;
+    private readonly IUserRepository _userRepository;
     private readonly IEntryRepository _entryRepository;
     private readonly IPushNotificationSender _sender;
     private readonly IClock _clock;
@@ -29,7 +29,7 @@ public class NotificationService : INotificationService
         IValidator<UpdateNotificationPreferenceRequest> preferenceValidator,
         IDeviceTokenRepository deviceTokenRepository,
         INotificationPreferenceRepository preferenceRepository,
-        IWalletRepository walletRepository,
+        IUserRepository userRepository,
         IEntryRepository entryRepository,
         IPushNotificationSender sender,
         IClock clock)
@@ -38,7 +38,7 @@ public class NotificationService : INotificationService
         _preferenceValidator = preferenceValidator;
         _deviceTokenRepository = deviceTokenRepository;
         _preferenceRepository = preferenceRepository;
-        _walletRepository = walletRepository;
+        _userRepository = userRepository;
         _entryRepository = entryRepository;
         _sender = sender;
         _clock = clock;
@@ -225,26 +225,23 @@ public class NotificationService : INotificationService
 
     private async Task<PushMessage?> BuildDailyMessageAsync(Guid userId, DateTime localNow)
     {
-        var wallets = (await _walletRepository.GetAllByUserAsync(userId)).ToList();
-        if (wallets.Count == 0)
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user is null)
             return null;
 
         var daysInMonth = DateTime.DaysInMonth(localNow.Year, localNow.Month);
         var remainingDays = Math.Max(daysInMonth - localNow.Day + 1, 1);
 
-        decimal budgetedRemaining = 0;
-        var hasBudget = false;
-
-        foreach (var wallet in wallets.Where(w => w.DailyBudget.HasValue && w.Id.HasValue))
+        if (user.DailyBudget.HasValue && user.DailyBudget.Value > 0)
         {
-            hasBudget = true;
+            // Sum of Diario entries for the current month
+            var monthStart = new DateTime(localNow.Year, localNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var monthEnd   = monthStart.AddMonths(1);
+            var entries    = await _entryRepository.GetByUserInRangeAsync(userId, monthStart, monthEnd);
+            var spent      = entries.Where(e => e.Kind == EntryKind.Diario).Sum(e => e.Value);
 
-            var spent = await _entryRepository.GetSumByKindAsync(wallet.Id!.Value, EntryKind.Diario, localNow.Month, localNow.Year);
-            budgetedRemaining += wallet.DailyBudget!.Value * daysInMonth - spent;
-        }
+            var budgetedRemaining = user.DailyBudget.Value * daysInMonth - spent;
 
-        if (hasBudget)
-        {
             if (budgetedRemaining < 0)
             {
                 return new PushMessage
@@ -265,12 +262,13 @@ public class NotificationService : INotificationService
             };
         }
 
-        var total = wallets.Sum(w => w.Balance);
+        // No budget configured — show signed balance
+        var balance = await _entryRepository.GetSignedBalanceBeforeAsync(userId, localNow.AddDays(1));
 
         return new PushMessage
         {
             Title = "Resumo do dia",
-            Body = $"Seu saldo total e {Money(total)}. Defina um orcamento diario para receber quanto pode gastar.",
+            Body = $"Seu saldo total e {Money(balance)}. Defina um orcamento diario para receber quanto pode gastar.",
             Data = new Dictionary<string, string> { ["type"] = "daily-digest", ["status"] = "no-budget" }
         };
     }
