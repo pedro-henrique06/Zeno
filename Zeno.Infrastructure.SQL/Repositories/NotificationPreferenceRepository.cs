@@ -1,4 +1,4 @@
-using Dapper;
+using MongoDB.Driver;
 using Zeno.Domain.Interfaces;
 using Zeno.Domain.Notification;
 using Zeno.Infrastructure.SQL.Context;
@@ -7,71 +7,49 @@ namespace Zeno.Infrastructure.SQL.Repositories;
 
 public class NotificationPreferenceRepository : INotificationPreferenceRepository
 {
-    private const string Columns = "userid, dailyenabled, sendhour, timezoneid, lastsenton, createdat, updatedat";
+    private readonly ZenoMongoContext _context;
 
-    private readonly ZenoDbContext _context;
-
-    public NotificationPreferenceRepository(ZenoDbContext context)
+    public NotificationPreferenceRepository(ZenoMongoContext context)
     {
         _context = context;
     }
 
     public async Task<NotificationPreference?> GetByUserAsync(Guid userId)
     {
-        const string sql = $@"SELECT {Columns} FROM notificationpreferences WHERE userid = @UserId";
-        var row = await _context.Connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { UserId = userId });
-        return row is null ? null : Map(row);
+        return await _context.NotificationPreferences
+            .Find(x => x.UserId == userId)
+            .FirstOrDefaultAsync();
     }
 
     public async Task<NotificationPreference> UpsertAsync(NotificationPreference preference)
     {
-        const string sql = $@"INSERT INTO notificationpreferences (userid, dailyenabled, sendhour, timezoneid, lastsenton, createdat, updatedat)
-                              VALUES (@UserId, @DailyEnabled, @SendHour, @TimeZoneId, @LastSentOn, @CreatedAt, @UpdatedAt)
-                              ON CONFLICT (userid) DO UPDATE
-                                  SET dailyenabled = EXCLUDED.dailyenabled,
-                                      sendhour = EXCLUDED.sendhour,
-                                      timezoneid = EXCLUDED.timezoneid,
-                                      updatedat = EXCLUDED.updatedat
-                              RETURNING {Columns}";
+        var filter = Builders<NotificationPreference>.Filter.Eq(x => x.UserId, preference.UserId);
+        var update = Builders<NotificationPreference>.Update
+            .SetOnInsert(x => x.CreatedAt, preference.CreatedAt)
+            .Set(x => x.DailyEnabled, preference.DailyEnabled)
+            .Set(x => x.SendHour, preference.SendHour)
+            .Set(x => x.TimeZoneId, preference.TimeZoneId)
+            .Set(x => x.UpdatedAt, preference.UpdatedAt);
 
-        var row = await _context.Connection.QueryFirstAsync<dynamic>(sql, new
+        var options = new FindOneAndUpdateOptions<NotificationPreference>
         {
-            preference.UserId,
-            preference.DailyEnabled,
-            preference.SendHour,
-            preference.TimeZoneId,
-            preference.LastSentOn,
-            preference.CreatedAt,
-            preference.UpdatedAt
-        });
+            IsUpsert = true,
+            ReturnDocument = ReturnDocument.After,
+        };
 
-        return Map(row);
+        return await _context.NotificationPreferences.FindOneAndUpdateAsync(filter, update, options);
     }
 
     public async Task<IEnumerable<NotificationPreference>> GetAllEnabledAsync()
     {
-        const string sql = $@"SELECT {Columns} FROM notificationpreferences WHERE dailyenabled = true";
-        var rows = await _context.Connection.QueryAsync<dynamic>(sql);
-        return rows.Select(r => Map(r)).Cast<NotificationPreference>();
+        return await _context.NotificationPreferences
+            .Find(x => x.DailyEnabled)
+            .ToListAsync();
     }
 
     public async Task MarkSentAsync(Guid userId, DateOnly localDate)
     {
-        const string sql = @"UPDATE notificationpreferences SET lastsenton = @LocalDate WHERE userid = @UserId";
-        await _context.Connection.ExecuteAsync(sql, new { UserId = userId, LocalDate = localDate });
-    }
-
-    private static NotificationPreference Map(dynamic row)
-    {
-        return new NotificationPreference
-        {
-            UserId = row.userid,
-            DailyEnabled = row.dailyenabled,
-            SendHour = row.sendhour,
-            TimeZoneId = row.timezoneid,
-            LastSentOn = row.lastsenton is null ? null : (DateOnly)row.lastsenton,
-            CreatedAt = row.createdat,
-            UpdatedAt = row.updatedat
-        };
+        var update = Builders<NotificationPreference>.Update.Set(x => x.LastSentOn, localDate);
+        await _context.NotificationPreferences.UpdateOneAsync(x => x.UserId == userId, update);
     }
 }
