@@ -12,15 +12,21 @@ public static class ServiceConfigurator
     public static IServiceCollection AddInfrastructureSQL(this IServiceCollection services, string connectionString, string encryptionKey)
     {
         services.AddSingleton<IEncryptionService>(_ => new AesEncryptionService(encryptionKey));
-        services.AddSingleton<ZenoMongoContext>(sp => new ZenoMongoContext(connectionString, sp.GetRequiredService<IEncryptionService>()));
+        services.AddScoped<ZenoDbContext>(_ => new ZenoDbContext(connectionString));
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IEntryRepository, EntryRepository>();
+        services.AddScoped<IWalletRepository, WalletRepository>();
+        services.AddScoped<IAccountRepository, AccountRepository>();
+        services.AddScoped<IHomeRepository, HomeRepository>();
+        services.AddScoped<IRecurringEntryRepository, RecurringEntryRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<ITagRepository, TagRepository>();
-        services.AddScoped<IMonthlyExpenseCategoryRepository, MonthlyExpenseCategoryRepository>();
+        services.AddScoped<IFinancialGoalRepository, FinancialGoalRepository>();
+        services.AddScoped<IDebtRepository, DebtRepository>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<ICategoryRuleRepository, CategoryRuleRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
-        services.AddScoped<IPushSubscriptionRepository, PushSubscriptionRepository>();
-        services.AddScoped<IHouseRepository, HouseRepository>();
+        services.AddScoped<IDeviceTokenRepository, DeviceTokenRepository>();
+        services.AddScoped<INotificationPreferenceRepository, NotificationPreferenceRepository>();
 
         return services;
     }
