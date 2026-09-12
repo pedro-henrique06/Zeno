@@ -7,6 +7,7 @@ using Zeno.Domain.User;
 using Zeno.Domain.Entry;
 using Zeno.Domain.Auth;
 using Zeno.Domain.Enum;
+using Zeno.Domain.Notification;
 using Zeno.Infrastructure.SQL.Serialization;
 using Tag = Zeno.Domain.Tag.Tag;
 using House = Zeno.Domain.House.House;
@@ -115,6 +116,16 @@ public class ZenoMongoContext
 
         await Houses.Indexes.CreateOneAsync(new CreateIndexModel<House>(
             Builders<House>.IndexKeys.Ascending(x => x.UserId)));
+
+        await DeviceTokens.Indexes.CreateOneAsync(new CreateIndexModel<DeviceToken>(
+            Builders<DeviceToken>.IndexKeys.Ascending(x => x.Token),
+            new CreateIndexOptions { Unique = true }));
+        await DeviceTokens.Indexes.CreateOneAsync(new CreateIndexModel<DeviceToken>(
+            Builders<DeviceToken>.IndexKeys.Ascending(x => x.UserId)));
+
+        await NotificationPreferences.Indexes.CreateOneAsync(new CreateIndexModel<NotificationPreference>(
+            Builders<NotificationPreference>.IndexKeys.Ascending(x => x.UserId),
+            new CreateIndexOptions { Unique = true }));
     }
 
     public IMongoCollection<User> Users => _database.GetCollection<User>("users");
@@ -124,4 +135,6 @@ public class ZenoMongoContext
     public IMongoCollection<MonthlyExpenseCategory> MonthlyExpenseCategories => _database.GetCollection<MonthlyExpenseCategory>("monthlyexpensecategories");
     public IMongoCollection<PushSubscription> PushSubscriptions => _database.GetCollection<PushSubscription>("pushsubscriptions");
     public IMongoCollection<House> Houses => _database.GetCollection<House>("houses");
+    public IMongoCollection<DeviceToken> DeviceTokens => _database.GetCollection<DeviceToken>("devicetokens");
+    public IMongoCollection<NotificationPreference> NotificationPreferences => _database.GetCollection<NotificationPreference>("notificationpreferences");
 }

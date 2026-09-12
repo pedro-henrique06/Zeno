@@ -1,5 +1,4 @@
-using Dapper;
-using Zeno.Domain.Enum;
+using MongoDB.Driver;
 using Zeno.Domain.Interfaces;
 using Zeno.Domain.Notification;
 using Zeno.Infrastructure.SQL.Context;
@@ -8,81 +7,57 @@ namespace Zeno.Infrastructure.SQL.Repositories;
 
 public class DeviceTokenRepository : IDeviceTokenRepository
 {
-    private const string Columns = "id, userid, token, platform, isactive, createdat, lastseenat";
+    private readonly ZenoMongoContext _context;
 
-    private readonly ZenoDbContext _context;
-
-    public DeviceTokenRepository(ZenoDbContext context)
+    public DeviceTokenRepository(ZenoMongoContext context)
     {
         _context = context;
     }
 
     public async Task<IEnumerable<DeviceToken>> GetActiveByUserAsync(Guid userId)
     {
-        const string sql = $@"SELECT {Columns}
-                              FROM devicetokens
-                              WHERE userid = @UserId AND isactive = true
-                              ORDER BY lastseenat DESC";
-        var rows = await _context.Connection.QueryAsync<dynamic>(sql, new { UserId = userId });
-        return rows.Select(r => Map(r)).Cast<DeviceToken>();
+        return await _context.DeviceTokens
+            .Find(x => x.UserId == userId && x.IsActive)
+            .SortByDescending(x => x.LastSeenAt)
+            .ToListAsync();
     }
 
     public async Task<DeviceToken?> GetByTokenAsync(string token)
     {
-        const string sql = $@"SELECT {Columns} FROM devicetokens WHERE token = @Token";
-        var row = await _context.Connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { Token = token });
-        return row is null ? null : Map(row);
+        return await _context.DeviceTokens
+            .Find(x => x.Token == token)
+            .FirstOrDefaultAsync();
     }
 
     public async Task<DeviceToken> UpsertAsync(DeviceToken deviceToken)
     {
         // O mesmo aparelho pode trocar de usuario (logout/login), por isso o conflito reatribui o token.
-        const string sql = $@"INSERT INTO devicetokens (id, userid, token, platform, isactive, createdat, lastseenat)
-                              VALUES (@Id, @UserId, @Token, @Platform, @IsActive, @CreatedAt, @LastSeenAt)
-                              ON CONFLICT (token) DO UPDATE
-                                  SET userid = EXCLUDED.userid,
-                                      platform = EXCLUDED.platform,
-                                      isactive = true,
-                                      lastseenat = EXCLUDED.lastseenat
-                              RETURNING {Columns}";
+        var filter = Builders<DeviceToken>.Filter.Eq(x => x.Token, deviceToken.Token);
+        var update = Builders<DeviceToken>.Update
+            .SetOnInsert(x => x.Id, deviceToken.Id)
+            .SetOnInsert(x => x.CreatedAt, deviceToken.CreatedAt)
+            .Set(x => x.UserId, deviceToken.UserId)
+            .Set(x => x.Platform, deviceToken.Platform)
+            .Set(x => x.IsActive, true)
+            .Set(x => x.LastSeenAt, deviceToken.LastSeenAt);
 
-        var row = await _context.Connection.QueryFirstAsync<dynamic>(sql, new
+        var options = new FindOneAndUpdateOptions<DeviceToken>
         {
-            deviceToken.Id,
-            deviceToken.UserId,
-            deviceToken.Token,
-            Platform = (int)deviceToken.Platform,
-            deviceToken.IsActive,
-            deviceToken.CreatedAt,
-            deviceToken.LastSeenAt
-        });
+            IsUpsert = true,
+            ReturnDocument = ReturnDocument.After,
+        };
 
-        return Map(row);
+        return await _context.DeviceTokens.FindOneAndUpdateAsync(filter, update, options);
     }
 
     public async Task DeactivateAsync(string token)
     {
-        const string sql = @"UPDATE devicetokens SET isactive = false WHERE token = @Token";
-        await _context.Connection.ExecuteAsync(sql, new { Token = token });
+        var update = Builders<DeviceToken>.Update.Set(x => x.IsActive, false);
+        await _context.DeviceTokens.UpdateOneAsync(x => x.Token == token, update);
     }
 
     public async Task DeleteByUserAndTokenAsync(Guid userId, string token)
     {
-        const string sql = @"DELETE FROM devicetokens WHERE userid = @UserId AND token = @Token";
-        await _context.Connection.ExecuteAsync(sql, new { UserId = userId, Token = token });
-    }
-
-    private static DeviceToken Map(dynamic row)
-    {
-        return new DeviceToken
-        {
-            Id = row.id,
-            UserId = row.userid,
-            Token = row.token,
-            Platform = (DevicePlatform)(int)row.platform,
-            IsActive = row.isactive,
-            CreatedAt = row.createdat,
-            LastSeenAt = row.lastseenat
-        };
+        await _context.DeviceTokens.DeleteOneAsync(x => x.UserId == userId && x.Token == token);
     }
 }

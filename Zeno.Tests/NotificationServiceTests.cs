@@ -7,7 +7,8 @@ using Zeno.Application.Services;
 using Zeno.Domain.Enum;
 using Zeno.Domain.Interfaces;
 using Zeno.Domain.Notification;
-using Zeno.Domain.Wallet;
+using UserEntity = Zeno.Domain.User.User;
+using EntryEntity = Zeno.Domain.Entry.Entry;
 
 namespace Zeno.Tests;
 
@@ -19,7 +20,7 @@ public class NotificationServiceTests
     private readonly Mock<IValidator<UpdateNotificationPreferenceRequest>> _preferenceValidator = new();
     private readonly Mock<IDeviceTokenRepository> _deviceRepo = new();
     private readonly Mock<INotificationPreferenceRepository> _preferenceRepo = new();
-    private readonly Mock<IWalletRepository> _walletRepo = new();
+    private readonly Mock<IUserRepository> _userRepo = new();
     private readonly Mock<IEntryRepository> _entryRepo = new();
     private readonly Mock<IPushNotificationSender> _sender = new();
     private readonly FakeClock _clock = new();
@@ -40,8 +41,12 @@ public class NotificationServiceTests
 
         _deviceRepo.Setup(r => r.GetActiveByUserAsync(It.IsAny<Guid>()))
             .ReturnsAsync(Array.Empty<DeviceToken>());
-        _walletRepo.Setup(r => r.GetAllByUserAsync(It.IsAny<Guid>()))
-            .ReturnsAsync(Array.Empty<Wallet>());
+        _userRepo.Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
+            .ReturnsAsync((UserEntity?)null);
+        _entryRepo.Setup(r => r.GetByUserInRangeAsync(It.IsAny<Guid>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+            .ReturnsAsync(Array.Empty<EntryEntity>());
+        _entryRepo.Setup(r => r.GetSignedBalanceBeforeAsync(It.IsAny<Guid>(), It.IsAny<DateTime>()))
+            .ReturnsAsync(0m);
         _preferenceRepo.Setup(r => r.GetAllEnabledAsync())
             .ReturnsAsync(Array.Empty<NotificationPreference>());
     }
@@ -51,7 +56,7 @@ public class NotificationServiceTests
         _preferenceValidator.Object,
         _deviceRepo.Object,
         _preferenceRepo.Object,
-        _walletRepo.Object,
+        _userRepo.Object,
         _entryRepo.Object,
         _sender.Object,
         _clock);
@@ -77,15 +82,15 @@ public class NotificationServiceTests
             tokens.Select(t => new DeviceToken { Id = Guid.NewGuid(), UserId = _userId, Token = t }).ToArray());
     }
 
-    private void GivenWalletWithBudget(decimal dailyBudget, decimal spentThisMonth)
+    private void GivenUserWithBudget(decimal dailyBudget, decimal spentThisMonth)
     {
-        var walletId = Guid.NewGuid();
-        _walletRepo.Setup(r => r.GetAllByUserAsync(_userId)).ReturnsAsync(new[]
-        {
-            new Wallet { Id = walletId, UserId = _userId, DailyBudget = dailyBudget, Balance = 1000m }
-        });
-        _entryRepo.Setup(r => r.GetSumByKindAsync(walletId, EntryKind.Diario, It.IsAny<int>(), It.IsAny<int>()))
-            .ReturnsAsync(spentThisMonth);
+        _userRepo.Setup(r => r.GetByIdAsync(_userId)).ReturnsAsync(
+            new UserEntity { Id = _userId, DailyBudget = dailyBudget });
+        _entryRepo.Setup(r => r.GetByUserInRangeAsync(_userId, It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+            .ReturnsAsync(new[]
+            {
+                new EntryEntity { UserId = _userId, Kind = EntryKind.Diario, Value = spentThisMonth }
+            });
     }
 
     [Fact]
@@ -95,7 +100,7 @@ public class NotificationServiceTests
         _clock.UtcNow = new DateTime(2026, 8, 24, 12, 0, 0, DateTimeKind.Utc);
         GivenEnabledPreference(sendHour: 9);
         GivenDevices("token-a");
-        GivenWalletWithBudget(dailyBudget: 50m, spentThisMonth: 1000m);
+        GivenUserWithBudget(dailyBudget: 50m, spentThisMonth: 1000m);
 
         var sent = await CreateService().SendDueDailyDigestsAsync();
 
@@ -141,7 +146,7 @@ public class NotificationServiceTests
         _clock.UtcNow = new DateTime(2026, 8, 24, 23, 0, 0, DateTimeKind.Utc);
         GivenEnabledPreference(sendHour: 9, lastSentOn: new DateOnly(2026, 8, 23));
         GivenDevices("token-a");
-        GivenWalletWithBudget(dailyBudget: 50m, spentThisMonth: 100m);
+        GivenUserWithBudget(dailyBudget: 50m, spentThisMonth: 100m);
 
         var sent = await CreateService().SendDueDailyDigestsAsync();
 
@@ -151,9 +156,7 @@ public class NotificationServiceTests
     [Fact]
     public async Task SendDueDailyDigests_UsesUserTimeZoneNotServerUtc()
     {
-        // 12:00 UTC ja passou das 09:00 em UTC, mas em Sao Paulo sao 09:00 e em Tokyo ja e o dia seguinte.
-        // Com fuso de Tokyo (UTC+9), 12:00 UTC = 21:00 local do mesmo dia -> envia.
-        // Com sendHour 22 em Tokyo, ainda nao deve enviar.
+        // Com sendHour 22 em Tokyo (UTC+9), 12:00 UTC = 21:00 local -> ainda nao deve enviar.
         _clock.UtcNow = new DateTime(2026, 8, 24, 12, 0, 0, DateTimeKind.Utc);
         GivenEnabledPreference(sendHour: 22, timeZoneId: "Asia/Tokyo");
         GivenDevices("token-a");
@@ -177,12 +180,13 @@ public class NotificationServiceTests
     }
 
     [Fact]
-    public async Task SendDueDailyDigests_SkipsUserWithoutWallets()
+    public async Task SendDueDailyDigests_SkipsUserNotFound()
     {
-        // Sem carteira nao ha o que resumir; nao marcamos como enviado para nao "queimar" o dia.
+        // Sem usuario nao ha o que resumir; nao marcamos como enviado.
         _clock.UtcNow = new DateTime(2026, 8, 24, 15, 0, 0, DateTimeKind.Utc);
         GivenEnabledPreference(sendHour: 9);
         GivenDevices("token-a");
+        // _userRepo default retorna null
 
         var sent = await CreateService().SendDueDailyDigestsAsync();
 
@@ -191,15 +195,15 @@ public class NotificationServiceTests
     }
 
     [Fact]
-    public async Task DailyDigest_FallsBackToBalanceWhenNoWalletHasBudget()
+    public async Task DailyDigest_FallsBackToBalanceWhenNoBudgetConfigured()
     {
         _clock.UtcNow = new DateTime(2026, 8, 24, 15, 0, 0, DateTimeKind.Utc);
         GivenEnabledPreference(sendHour: 9);
         GivenDevices("token-a");
-        _walletRepo.Setup(r => r.GetAllByUserAsync(_userId)).ReturnsAsync(new[]
-        {
-            new Wallet { Id = Guid.NewGuid(), UserId = _userId, DailyBudget = null, Balance = 250.5m }
-        });
+        _userRepo.Setup(r => r.GetByIdAsync(_userId))
+            .ReturnsAsync(new UserEntity { Id = _userId, DailyBudget = null });
+        _entryRepo.Setup(r => r.GetSignedBalanceBeforeAsync(_userId, It.IsAny<DateTime>()))
+            .ReturnsAsync(250.5m);
 
         PushMessage? captured = null;
         _sender.Setup(s => s.SendAsync(It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<PushMessage>(), It.IsAny<CancellationToken>()))
@@ -221,7 +225,7 @@ public class NotificationServiceTests
         _clock.UtcNow = new DateTime(2026, 8, 24, 15, 0, 0, DateTimeKind.Utc);
         GivenEnabledPreference(sendHour: 9);
         GivenDevices("token-a");
-        GivenWalletWithBudget(dailyBudget: 50m, spentThisMonth: 100m);
+        GivenUserWithBudget(dailyBudget: 50m, spentThisMonth: 100m);
 
         _sender.Setup(s => s.SendAsync(It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<PushMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PushSendResult { SuccessCount = 0 });
@@ -252,7 +256,7 @@ public class NotificationServiceTests
         _clock.UtcNow = new DateTime(2026, 8, 24, 15, 0, 0, DateTimeKind.Utc);
         GivenEnabledPreference(sendHour: 9);
         GivenDevices("valido", "expirado");
-        GivenWalletWithBudget(dailyBudget: 50m, spentThisMonth: 100m);
+        GivenUserWithBudget(dailyBudget: 50m, spentThisMonth: 100m);
 
         _sender.Setup(s => s.SendAsync(It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<PushMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PushSendResult { SuccessCount = 1, InvalidTokens = new[] { "expirado" } });
@@ -277,7 +281,7 @@ public class NotificationServiceTests
 
         _deviceRepo.Setup(r => r.GetActiveByUserAsync(brokenUser)).ThrowsAsync(new InvalidOperationException("boom"));
         GivenDevices("token-a");
-        GivenWalletWithBudget(dailyBudget: 50m, spentThisMonth: 100m);
+        GivenUserWithBudget(dailyBudget: 50m, spentThisMonth: 100m);
 
         var sent = await CreateService().SendDueDailyDigestsAsync();
 
@@ -292,7 +296,7 @@ public class NotificationServiceTests
         _clock.UtcNow = new DateTime(2026, 8, 24, 15, 0, 0, DateTimeKind.Utc);
         GivenEnabledPreference(sendHour: 9);
         GivenDevices("token-a");
-        GivenWalletWithBudget(dailyBudget: 50m, spentThisMonth: 1000m);
+        GivenUserWithBudget(dailyBudget: 50m, spentThisMonth: 1000m);
 
         PushMessage? captured = null;
         _sender.Setup(s => s.SendAsync(It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<PushMessage>(), It.IsAny<CancellationToken>()))
@@ -312,7 +316,7 @@ public class NotificationServiceTests
         _clock.UtcNow = new DateTime(2026, 8, 24, 15, 0, 0, DateTimeKind.Utc);
         GivenEnabledPreference(sendHour: 9);
         GivenDevices("token-a");
-        GivenWalletWithBudget(dailyBudget: 10m, spentThisMonth: 1000m);
+        GivenUserWithBudget(dailyBudget: 10m, spentThisMonth: 1000m);
 
         PushMessage? captured = null;
         _sender.Setup(s => s.SendAsync(It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<PushMessage>(), It.IsAny<CancellationToken>()))
