@@ -12,9 +12,11 @@ public class PushNotificationService : IPushNotificationService
     private readonly IPushSubscriptionRepository _subscriptionRepository;
     private readonly IBalanceService _balanceService;
     private readonly IUserRepository _userRepository;
-    private readonly string _vapidPublicKey;
-    private readonly string _vapidPrivateKey;
+    private readonly string? _vapidPublicKey;
+    private readonly string? _vapidPrivateKey;
     private readonly string _vapidSubject;
+
+    public bool IsVapidConfigured => !string.IsNullOrEmpty(_vapidPublicKey) && !string.IsNullOrEmpty(_vapidPrivateKey);
 
     public PushNotificationService(
         IPushSubscriptionRepository subscriptionRepository,
@@ -25,8 +27,8 @@ public class PushNotificationService : IPushNotificationService
         _subscriptionRepository = subscriptionRepository;
         _balanceService = balanceService;
         _userRepository = userRepository;
-        _vapidPublicKey = configuration["Vapid:PublicKey"] ?? throw new InvalidOperationException("Vapid:PublicKey not configured");
-        _vapidPrivateKey = configuration["Vapid:PrivateKey"] ?? throw new InvalidOperationException("Vapid:PrivateKey not configured");
+        _vapidPublicKey = configuration["Vapid:PublicKey"];
+        _vapidPrivateKey = configuration["Vapid:PrivateKey"];
         _vapidSubject = configuration["Vapid:Subject"] ?? "mailto:zeno@app.com";
     }
 
@@ -43,11 +45,17 @@ public class PushNotificationService : IPushNotificationService
 
     public async Task SendDailyBalancesAsync()
     {
+        if (!IsVapidConfigured)
+        {
+            Console.WriteLine("[Push] VAPID keys not configured — skipping daily balances.");
+            return;
+        }
+
         var subscriptions = await _subscriptionRepository.GetAllAsync();
         if (subscriptions.Count == 0) return;
 
         var client = new WebPushClient();
-        client.SetVapidDetails(_vapidSubject, _vapidPublicKey, _vapidPrivateKey);
+        client.SetVapidDetails(_vapidSubject, _vapidPublicKey!, _vapidPrivateKey!);
 
         var today = DateTime.UtcNow;
         var userGroups = subscriptions.GroupBy(s => s.UserId);

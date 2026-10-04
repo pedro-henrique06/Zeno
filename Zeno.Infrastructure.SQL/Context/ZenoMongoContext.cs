@@ -14,6 +14,7 @@ using House = Zeno.Domain.House.House;
 using HouseMember = Zeno.Domain.House.HouseMember;
 using MonthlyExpenseCategory = Zeno.Domain.MonthlyExpenseCategory.MonthlyExpenseCategory;
 using PushSubscription = Zeno.Domain.Push.PushSubscription;
+using Goal = Zeno.Domain.Goals.Goal;
 
 namespace Zeno.Infrastructure.SQL.Context;
 
@@ -74,6 +75,18 @@ public class ZenoMongoContext
             });
         }
 
+        if (!BsonClassMap.IsClassMapRegistered(typeof(Goal)))
+        {
+            BsonClassMap.RegisterClassMap<Goal>(cm =>
+            {
+                cm.AutoMap();
+                cm.GetMemberMap(g => g.Name).SetSerializer(encryptedString);
+                cm.GetMemberMap(g => g.TargetAmount).SetSerializer(encryptedDecimal);
+                cm.GetMemberMap(g => g.MonthlyContribution).SetSerializer(encryptedDecimal);
+                cm.GetMemberMap(g => g.InitialAmount).SetSerializer(encryptedDecimal);
+            });
+        }
+
         if (!BsonClassMap.IsClassMapRegistered(typeof(HouseMember)))
         {
             BsonClassMap.RegisterClassMap<HouseMember>(cm =>
@@ -117,6 +130,10 @@ public class ZenoMongoContext
         await Houses.Indexes.CreateOneAsync(new CreateIndexModel<House>(
             Builders<House>.IndexKeys.Ascending(x => x.UserId)));
 
+        await Goals.Indexes.CreateOneAsync(new CreateIndexModel<Goal>(
+            Builders<Goal>.IndexKeys.Ascending(x => x.UserId),
+            new CreateIndexOptions { Unique = true }));
+
         await DeviceTokens.Indexes.CreateOneAsync(new CreateIndexModel<DeviceToken>(
             Builders<DeviceToken>.IndexKeys.Ascending(x => x.Token),
             new CreateIndexOptions { Unique = true }));
@@ -135,6 +152,7 @@ public class ZenoMongoContext
     public IMongoCollection<MonthlyExpenseCategory> MonthlyExpenseCategories => _database.GetCollection<MonthlyExpenseCategory>("monthlyexpensecategories");
     public IMongoCollection<PushSubscription> PushSubscriptions => _database.GetCollection<PushSubscription>("pushsubscriptions");
     public IMongoCollection<House> Houses => _database.GetCollection<House>("houses");
+    public IMongoCollection<Goal> Goals => _database.GetCollection<Goal>("goals");
     public IMongoCollection<DeviceToken> DeviceTokens => _database.GetCollection<DeviceToken>("devicetokens");
     public IMongoCollection<NotificationPreference> NotificationPreferences => _database.GetCollection<NotificationPreference>("notificationpreferences");
 }
