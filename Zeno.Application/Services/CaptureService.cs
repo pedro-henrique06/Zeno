@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -18,18 +19,27 @@ public class CaptureService : ICaptureService
 {
     private const string KeyPrefix = "zc_";
     private const int MaxTitleLength = 100;
+    private const int MaxDetailLength = 100;
+    private const int MaxMatchLength = 60;
+    private const int MaxRulesPerUser = 50;
     private static readonly TimeSpan DuplicateWindow = TimeSpan.FromMinutes(2);
 
     private readonly ICaptureKeyRepository _keyRepository;
+    private readonly ICaptureRuleRepository _ruleRepository;
+    private readonly ITagRepository _tagRepository;
     private readonly IEntryService _entryService;
     private readonly IClock _clock;
 
     public CaptureService(
         ICaptureKeyRepository keyRepository,
+        ICaptureRuleRepository ruleRepository,
+        ITagRepository tagRepository,
         IEntryService entryService,
         IClock clock)
     {
         _keyRepository = keyRepository;
+        _ruleRepository = ruleRepository;
+        _tagRepository = tagRepository;
         _entryService = entryService;
         _clock = clock;
     }
@@ -65,6 +75,46 @@ public class CaptureService : ICaptureService
         return _keyRepository.DeleteByUserAsync(userId);
     }
 
+    public async Task<IReadOnlyList<CaptureRuleResponse>> GetRulesAsync(Guid userId)
+    {
+        var rules = await _ruleRepository.GetByUserAsync(userId);
+        return rules.Select(ToResponse).ToList();
+    }
+
+    public async Task<CaptureRuleResponse> AddRuleAsync(Guid userId, AddCaptureRuleRequest request)
+    {
+        var match = request.Match?.Trim() ?? string.Empty;
+        if (match.Length == 0)
+            throw Invalid(nameof(AddCaptureRuleRequest.Match), "Informe o texto que deve ser procurado.");
+        if (match.Length > MaxMatchLength)
+            throw Invalid(nameof(AddCaptureRuleRequest.Match), $"O texto deve ter no máximo {MaxMatchLength} caracteres.");
+
+        var tag = await _tagRepository.GetByIdAsync(request.TagId);
+        if (tag is null || tag.UserId != userId)
+            throw Invalid(nameof(AddCaptureRuleRequest.TagId), "Tag não encontrada.");
+
+        var existing = await _ruleRepository.GetByUserAsync(userId);
+        if (existing.Count >= MaxRulesPerUser)
+            throw Invalid(nameof(AddCaptureRuleRequest.Match), $"Limite de {MaxRulesPerUser} regras atingido.");
+
+        var rule = await _ruleRepository.CreateAsync(new CaptureRule
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Match = match,
+            TagId = tag.Id,
+            CreatedAt = _clock.UtcNow
+        });
+
+        return ToResponse(rule);
+    }
+
+    public async Task DeleteRuleAsync(Guid userId, Guid id)
+    {
+        if (!await _ruleRepository.DeleteAsync(userId, id))
+            throw Invalid(nameof(id), "Regra não encontrada.");
+    }
+
     public async Task<CaptureEntryResponse?> CaptureAsync(string? key, CaptureEntryRequest request, string? timeZoneId)
     {
         if (string.IsNullOrWhiteSpace(key))
@@ -97,12 +147,17 @@ public class CaptureService : ICaptureService
             };
         }
 
+        var card = NormalizeDetail(request.Card);
+        var category = NormalizeDetail(request.Category);
+        var tagId = await ResolveTagAsync(record.UserId, title, category);
+
         var entry = await _entryService.CreateEntry(record.UserId, new CreateEntryRequest
         {
             Title = title,
             Value = value,
             Kind = kind,
-            Description = "Capturado automaticamente",
+            Description = BuildDescription(card, category),
+            TagId = tagId,
             Date = date
         });
 
@@ -114,11 +169,86 @@ public class CaptureService : ICaptureService
         {
             Created = true,
             EntryId = entry.Id,
+            TagId = entry.TagId,
+            Description = entry.Description,
             Title = entry.Title,
             Value = entry.Value,
             Kind = entry.Kind,
             Date = entry.Date
         };
+    }
+
+    /// <summary>Regras do usuário primeiro; depois, uma tag cujo nome combine com a categoria.</summary>
+    private async Task<Guid?> ResolveTagAsync(Guid userId, string title, string? category)
+    {
+        var haystack = Normalize($"{title} {category}");
+
+        var rules = await _ruleRepository.GetByUserAsync(userId);
+        foreach (var rule in rules)
+        {
+            var needle = Normalize(rule.Match);
+            if (needle.Length > 0 && haystack.Contains(needle, StringComparison.Ordinal))
+                return rule.TagId;
+        }
+
+        var normalizedCategory = Normalize(category ?? string.Empty);
+        if (normalizedCategory.Length == 0)
+            return null;
+
+        var tags = (await _tagRepository.GetByUserAsync(userId)).ToList();
+
+        var exact = tags.FirstOrDefault(t => Normalize(t.Name) == normalizedCategory);
+        if (exact is not null)
+            return exact.Id;
+
+        var partial = tags.FirstOrDefault(t =>
+        {
+            var name = Normalize(t.Name);
+            return name.Length >= 3
+                && (normalizedCategory.Contains(name, StringComparison.Ordinal)
+                    || name.Contains(normalizedCategory, StringComparison.Ordinal));
+        });
+
+        return partial?.Id;
+    }
+
+    private static string BuildDescription(string? card, string? category)
+    {
+        var parts = new List<string> { "Capturado automaticamente" };
+        if (card is not null)
+            parts.Add($"Cartão: {card}");
+        if (category is not null)
+            parts.Add($"Categoria: {category}");
+
+        return string.Join(" · ", parts);
+    }
+
+    private static string? NormalizeDetail(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return null;
+
+        var trimmed = text.Trim();
+        return trimmed.Length > MaxDetailLength ? trimmed[..MaxDetailLength] : trimmed;
+    }
+
+    /// <summary>Minúsculas, sem acentos e com espaços simples, para comparar textos.</summary>
+    internal static string Normalize(string text)
+    {
+        var decomposed = text.Trim().ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD);
+        var sb = new StringBuilder(decomposed.Length);
+        foreach (var c in decomposed)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+                sb.Append(c);
+        }
+
+        return string.Join(' ', sb.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    private static CaptureRuleResponse ToResponse(CaptureRule rule)
+    {
+        return new CaptureRuleResponse { Id = rule.Id, Match = rule.Match, TagId = rule.TagId };
     }
 
     private static decimal ParseAmount(JsonElement? amount)
