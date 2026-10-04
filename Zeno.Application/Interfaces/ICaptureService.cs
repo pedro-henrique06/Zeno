@@ -12,6 +12,10 @@ public interface ICaptureService
 
     Task RevokeKeyAsync(Guid userId);
 
+    Task<IReadOnlyList<CaptureRuleResponse>> GetRulesAsync(Guid userId);
+    Task<CaptureRuleResponse> AddRuleAsync(Guid userId, AddCaptureRuleRequest request);
+    Task DeleteRuleAsync(Guid userId, Guid id);
+
     /// <summary>Cria o lançamento do dono da chave; null se a chave for inválida ou revogada.</summary>
     Task<CaptureEntryResponse?> CaptureAsync(string? key, CaptureEntryRequest request, string? timeZoneId);
 }

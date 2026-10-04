@@ -17,6 +17,7 @@ using PushSubscription = Zeno.Domain.Push.PushSubscription;
 using Goal = Zeno.Domain.Goals.Goal;
 using WidgetKey = Zeno.Domain.Widgets.WidgetKey;
 using CaptureKey = Zeno.Domain.Capture.CaptureKey;
+using CaptureRule = Zeno.Domain.Capture.CaptureRule;
 
 namespace Zeno.Infrastructure.SQL.Context;
 
@@ -143,6 +144,9 @@ public class ZenoMongoContext
             Builders<CaptureKey>.IndexKeys.Ascending(x => x.KeyHash),
             new CreateIndexOptions { Unique = true }));
 
+        await CaptureRules.Indexes.CreateOneAsync(new CreateIndexModel<CaptureRule>(
+            Builders<CaptureRule>.IndexKeys.Ascending(x => x.UserId)));
+
         await WidgetKeys.Indexes.CreateOneAsync(new CreateIndexModel<WidgetKey>(
             Builders<WidgetKey>.IndexKeys.Ascending(x => x.UserId),
             new CreateIndexOptions { Unique = true }));
@@ -168,6 +172,7 @@ public class ZenoMongoContext
     public IMongoCollection<MonthlyExpenseCategory> MonthlyExpenseCategories => _database.GetCollection<MonthlyExpenseCategory>("monthlyexpensecategories");
     public IMongoCollection<PushSubscription> PushSubscriptions => _database.GetCollection<PushSubscription>("pushsubscriptions");
     public IMongoCollection<House> Houses => _database.GetCollection<House>("houses");
+    public IMongoCollection<CaptureRule> CaptureRules => _database.GetCollection<CaptureRule>("capturerules");
     public IMongoCollection<CaptureKey> CaptureKeys => _database.GetCollection<CaptureKey>("capturekeys");
     public IMongoCollection<WidgetKey> WidgetKeys => _database.GetCollection<WidgetKey>("widgetkeys");
     public IMongoCollection<Goal> Goals => _database.GetCollection<Goal>("goals");

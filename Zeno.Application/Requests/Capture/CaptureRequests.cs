@@ -16,4 +16,18 @@ public sealed class CaptureEntryRequest
 
     /// <summary>diario (padrão), entrada, saida, economia ou cartao.</summary>
     public string? Kind { get; set; }
+
+    /// <summary>Nome do cartão usado (como na Carteira, ex.: "Nubank Mastercard"). Opcional.</summary>
+    public string? Card { get; set; }
+
+    /// <summary>Categoria do estabelecimento informada pelo Apple Pay. Opcional.</summary>
+    public string? Category { get; set; }
+}
+
+public sealed class AddCaptureRuleRequest
+{
+    /// <summary>Texto procurado no comerciante ou na categoria (sem diferenciar maiúsculas nem acentos).</summary>
+    public string Match { get; set; } = string.Empty;
+
+    public Guid TagId { get; set; }
 }

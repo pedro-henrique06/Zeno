@@ -22,8 +22,17 @@ public sealed class CaptureEntryResponse
 
     public bool Duplicate { get; set; }
     public Guid? EntryId { get; set; }
+    public Guid? TagId { get; set; }
+    public string? Description { get; set; }
     public string Title { get; set; } = string.Empty;
     public decimal Value { get; set; }
     public EntryKind Kind { get; set; }
     public DateTime Date { get; set; }
+}
+
+public sealed class CaptureRuleResponse
+{
+    public Guid Id { get; set; }
+    public string Match { get; set; } = string.Empty;
+    public Guid TagId { get; set; }
 }

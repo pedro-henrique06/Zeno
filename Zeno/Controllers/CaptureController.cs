@@ -43,6 +43,32 @@ public class CaptureController : AppControllerBase
         return NoContent();
     }
 
+    /// <summary>Regras que ligam comerciantes/categorias do Apple Pay às tags do usuário.</summary>
+    [HttpGet("rules")]
+    public async Task<IActionResult> GetRules()
+    {
+        var result = await _service.GetRulesAsync(GetUserId());
+        return Ok(ApiResponse<IReadOnlyList<CaptureRuleResponse>>.Ok(result));
+    }
+
+    [HttpPost("rules")]
+    public async Task<IActionResult> AddRule([FromBody] AddCaptureRuleRequest request)
+    {
+        var userId = GetUserId();
+        return await HandleAsync(
+            () => _service.AddRuleAsync(userId, request),
+            data => Ok(ApiResponse<CaptureRuleResponse>.Ok(data)));
+    }
+
+    [HttpDelete("rules/{id:guid}")]
+    public async Task<IActionResult> DeleteRule(Guid id)
+    {
+        var userId = GetUserId();
+        return await HandleAsync(
+            () => _service.DeleteRuleAsync(userId, id),
+            NoContent());
+    }
+
     /// <summary>Cria um lançamento a partir de uma automação. Autenticado pelo header X-Capture-Key.</summary>
     [AllowAnonymous]
     [HttpPost("entry")]
