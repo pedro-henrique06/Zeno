@@ -99,6 +99,7 @@ builder.Services.AddHttpClient<IExchangeRateService, ExchangeRateService>();
 builder.Services.AddScoped<IHouseService, HouseService>();
 builder.Services.AddScoped<IGoalService, GoalService>();
 builder.Services.AddScoped<IWidgetService, WidgetService>();
+builder.Services.AddScoped<ICaptureService, CaptureService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
