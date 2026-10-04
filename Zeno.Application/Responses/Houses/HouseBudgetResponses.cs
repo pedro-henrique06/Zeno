@@ -42,6 +42,15 @@ public sealed class HouseBudgetResponse
     /// <summary>50%: necessidades.</summary>
     public decimal Needs { get; set; }
 
+    /// <summary>
+    /// Gastos fixos da casa no mês: lançamentos de Saída recorrentes vinculados à casa
+    /// (aluguel, contas, assinaturas). Saem da fatia de necessidades.
+    /// </summary>
+    public decimal FixedExpenses { get; set; }
+
+    /// <summary>Needs - FixedExpenses; negativo quando os gastos fixos passam dos 50%.</summary>
+    public decimal NeedsRemaining { get; set; }
+
     /// <summary>30%: desejos (saldo livre).</summary>
     public decimal Wants { get; set; }
 

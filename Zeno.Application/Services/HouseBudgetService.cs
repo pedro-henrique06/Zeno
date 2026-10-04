@@ -72,6 +72,7 @@ public class HouseBudgetService : IHouseBudgetService
         var needs = RoundMoney(totalIncome * NeedsShare);
         var wants = RoundMoney(totalIncome * WantsShare);
         var savings = SavingsOf(totalIncome);
+        var fixedExpenses = await FixedExpensesForMonthAsync(house, selectedStart);
         var owner = await _userRepository.GetByIdAsync(house.UserId);
 
         return new HouseBudgetResponse
@@ -84,6 +85,8 @@ public class HouseBudgetService : IHouseBudgetService
             IsOwner = house.UserId == userId,
             TotalIncome = totalIncome,
             Needs = needs,
+            FixedExpenses = fixedExpenses,
+            NeedsRemaining = needs - fixedExpenses,
             Wants = wants,
             Savings = savings,
             FreePerPerson = RoundMoney(wants / residents.Count),
@@ -177,6 +180,28 @@ public class HouseBudgetService : IHouseBudgetService
         }
 
         return totals;
+    }
+
+    /// <summary>
+    /// Soma, no mês, os lançamentos de Saída recorrentes vinculados à casa: o próprio lançamento no
+    /// mês em que foi criado e as ocorrências dos meses seguintes (respeitando a data de término).
+    /// </summary>
+    private async Task<decimal> FixedExpensesForMonthAsync(HouseEntity house, DateTime monthStart)
+    {
+        var monthEnd = monthStart.AddMonths(1);
+        var templates = (await _entryRepository.GetRecurringByHouseAsync(house.UserId, house.Id))
+            .Where(e => e.Kind == EntryKind.Saida)
+            .ToList();
+
+        var startedThisMonth = templates
+            .Where(e => e.Date >= monthStart && e.Date < monthEnd)
+            .Sum(e => e.Value);
+
+        var recurringOccurrences = RecurringEntryProjector
+            .ExpandOccurrencesInRange(templates, monthStart, monthEnd)
+            .Sum(e => e.Value);
+
+        return startedThisMonth + recurringOccurrences;
     }
 
     private static decimal IncomeOf(IReadOnlyDictionary<(int Year, int Month), decimal> byMonth, DateTime month)

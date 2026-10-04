@@ -23,6 +23,7 @@ public class HouseBudgetServiceTests
 
     private readonly Dictionary<Guid, List<EntryEntity>> _entries = new();
     private readonly Dictionary<Guid, List<EntryEntity>> _recurring = new();
+    private readonly List<EntryEntity> _houseRecurring = new();
 
     private readonly Guid _ownerId = Guid.NewGuid();
     private readonly Guid _member1 = Guid.NewGuid();
@@ -53,6 +54,8 @@ public class HouseBudgetServiceTests
         _entryRepo.Setup(r => r.GetByUserInRangeAsync(It.IsAny<Guid>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
             .ReturnsAsync((Guid u, DateTime? _, DateTime? _) =>
                 (IEnumerable<EntryEntity>)(_entries.TryGetValue(u, out var l) ? l.ToList() : new List<EntryEntity>()));
+        _entryRepo.Setup(r => r.GetRecurringByHouseAsync(It.IsAny<Guid>(), It.IsAny<Guid>()))
+            .ReturnsAsync(() => (IEnumerable<EntryEntity>)_houseRecurring.ToList());
         _entryRepo.Setup(r => r.GetRecurringBeforeAsync(It.IsAny<Guid>(), It.IsAny<DateTime>()))
             .ReturnsAsync((Guid u, DateTime _) =>
                 (IEnumerable<EntryEntity>)(_recurring.TryGetValue(u, out var l) ? l.ToList() : new List<EntryEntity>()));
@@ -188,6 +191,100 @@ public class HouseBudgetServiceTests
         var result = await CreateService().GetBudgetAsync(_ownerId, _house.Id, null, null);
 
         Assert.Equal(3, result.ResidentCount);
+    }
+
+    private EntryEntity HouseExpense(decimal value, DateTime date, EntryKind kind = EntryKind.Saida, DateTime? endsOn = null)
+    {
+        var entry = new EntryEntity
+        {
+            UserId = _ownerId,
+            HouseId = _house.Id,
+            Kind = kind,
+            Value = value,
+            IsRecurring = true,
+            Date = date,
+            RecurrenceEndDate = endsOn
+        };
+        _houseRecurring.Add(entry);
+        return entry;
+    }
+
+    [Fact]
+    public async Task FixedExpenses_RecurringHouseExpensesAreCountedAgainstTheNeedsSlice()
+    {
+        AddEntry(_ownerId, EntryKind.Entrada, 6000m, 10);
+        HouseExpense(1500m, new DateTime(2026, 8, 5));   // rent, started in August
+        HouseExpense(300m, new DateTime(2026, 10, 12));  // started this month
+
+        var result = await CreateService().GetBudgetAsync(_ownerId, _house.Id, null, null);
+
+        Assert.Equal(3000m, result.Needs);
+        Assert.Equal(1800m, result.FixedExpenses);
+        Assert.Equal(1200m, result.NeedsRemaining);
+    }
+
+    [Fact]
+    public async Task FixedExpenses_OnlyExpenseKindsCount()
+    {
+        HouseExpense(1000m, new DateTime(2026, 8, 5));
+        HouseExpense(900m, new DateTime(2026, 8, 5), EntryKind.Entrada);
+        HouseExpense(700m, new DateTime(2026, 8, 5), EntryKind.Diario);
+        HouseExpense(600m, new DateTime(2026, 8, 5), EntryKind.Economia);
+
+        var result = await CreateService().GetBudgetAsync(_ownerId, _house.Id, null, null);
+
+        Assert.Equal(1000m, result.FixedExpenses);
+    }
+
+    [Fact]
+    public async Task FixedExpenses_StopAfterTheirEndDate_AndIgnoreFutureOnes()
+    {
+        HouseExpense(500m, new DateTime(2026, 3, 5), endsOn: new DateTime(2026, 9, 30)); // ended before October
+        HouseExpense(400m, new DateTime(2026, 11, 5));                                    // starts after October
+        HouseExpense(200m, new DateTime(2026, 3, 5), endsOn: new DateTime(2026, 12, 31)); // still running
+
+        var result = await CreateService().GetBudgetAsync(_ownerId, _house.Id, null, null);
+
+        Assert.Equal(200m, result.FixedExpenses);
+    }
+
+    [Fact]
+    public async Task FixedExpenses_OverTheNeedsSlice_GiveNegativeRemaining_AndDoNotChangeTheFreeAmount()
+    {
+        AddEntry(_ownerId, EntryKind.Entrada, 2000m, 10);
+        HouseExpense(1500m, new DateTime(2026, 8, 5));
+
+        var result = await CreateService().GetBudgetAsync(_ownerId, _house.Id, null, null);
+
+        Assert.Equal(1000m, result.Needs);
+        Assert.Equal(-500m, result.NeedsRemaining);
+        Assert.Equal(600m, result.Wants);
+        Assert.Equal(200m, result.FreePerPerson);   // 600 / 3 residents, untouched by the fixed expenses
+    }
+
+    [Fact]
+    public async Task FixedExpenses_FollowTheRequestedMonth()
+    {
+        HouseExpense(1000m, new DateTime(2026, 8, 5));
+
+        var july = await CreateService().GetBudgetAsync(_ownerId, _house.Id, 7, 2026);
+        var august = await CreateService().GetBudgetAsync(_ownerId, _house.Id, 8, 2026);
+        var november = await CreateService().GetBudgetAsync(_ownerId, _house.Id, 11, 2026);
+
+        Assert.Equal(0m, july.FixedExpenses);
+        Assert.Equal(1000m, august.FixedExpenses);
+        Assert.Equal(1000m, november.FixedExpenses);
+    }
+
+    [Fact]
+    public async Task FixedExpenses_WithoutAny_AreZero()
+    {
+        AddEntry(_ownerId, EntryKind.Entrada, 1000m, 10);
+
+        var result = await CreateService().GetBudgetAsync(_ownerId, _house.Id, null, null);
+
+        Assert.Equal(0m, result.FixedExpenses);
+        Assert.Equal(result.Needs, result.NeedsRemaining);
     }
 
     [Fact]
