@@ -75,6 +75,8 @@ public class ZenoMongoContext
                 cm.AutoMap();
                 cm.GetMemberMap(h => h.Name).SetSerializer(encryptedString);
                 cm.GetMemberMap(h => h.Description).SetSerializer(encryptedString);
+                cm.GetMemberMap(h => h.GoalName).SetSerializer(encryptedString);
+                cm.GetMemberMap(h => h.GoalTargetAmount).SetSerializer(new NullableSerializer<decimal>(encryptedDecimal));
             });
         }
 
