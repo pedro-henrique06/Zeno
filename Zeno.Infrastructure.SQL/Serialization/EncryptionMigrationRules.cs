@@ -32,6 +32,7 @@ public static class EncryptionMigrationRules
             ["users"] =
             [
                 new("Name", EncryptedFieldKind.String),
+                new("Email", EncryptedFieldKind.String),
                 new("Phone", EncryptedFieldKind.String),
                 new("Document", EncryptedFieldKind.String),
                 new("DailyBudget", EncryptedFieldKind.Decimal),
@@ -93,6 +94,9 @@ public static class EncryptionMigrationRules
         if (fields.Any(f => FieldNeedsMigration(f, document)))
             return true;
 
+        if (collection == "users" && UserNeedsEmailHash(document))
+            return true;
+
         return collection == "houses" && MembersOf(document).Any(m => HouseMemberFields.Any(f => FieldNeedsMigration(f, m)));
     }
 
@@ -110,6 +114,12 @@ public static class EncryptionMigrationRules
             return true;
 
         return collection == "houses" && MembersOf(document).Any(m => HouseMemberFields.Any(f => !IsReadable(f, m, decrypt)));
+    }
+
+    /// <summary>true se o usuário ainda não tem o índice cego do e-mail (EmailHash).</summary>
+    public static bool UserNeedsEmailHash(BsonDocument document)
+    {
+        return !(document.TryGetValue("EmailHash", out var hash) && hash.IsString && hash.AsString.Length > 0);
     }
 
     /// <summary>true se o refresh token ainda está em texto puro (o valor atual é o hash SHA-256).</summary>

@@ -63,6 +63,7 @@ public class ZenoMongoContext
                 cm.AutoMap();
                 cm.GetMemberMap(u => u.DailyBudget).SetSerializer(new NullableSerializer<decimal>(encryptedDecimal));
                 cm.GetMemberMap(u => u.Name).SetSerializer(encryptedString);
+                cm.GetMemberMap(u => u.Email).SetSerializer(encryptedString);
                 cm.GetMemberMap(u => u.Phone).SetSerializer(encryptedString);
                 cm.GetMemberMap(u => u.Document).SetSerializer(encryptedString);
                 cm.GetMemberMap(u => u.BirthDate).SetSerializer(new EncryptedNullableDateTimeSerializer(encryptionService));
@@ -148,6 +149,15 @@ public class ZenoMongoContext
         await Users.Indexes.CreateOneAsync(new CreateIndexModel<User>(
             Builders<User>.IndexKeys.Ascending(x => x.Email),
             new CreateIndexOptions { Unique = true }));
+        // E-mail is stored encrypted (random nonce), so uniqueness is enforced on the blind index instead.
+        // Partial: users not migrated yet have no EmailHash.
+        await Users.Indexes.CreateOneAsync(new CreateIndexModel<User>(
+            Builders<User>.IndexKeys.Ascending(x => x.EmailHash),
+            new CreateIndexOptions<User>
+            {
+                Unique = true,
+                PartialFilterExpression = Builders<User>.Filter.Type(x => x.EmailHash, BsonType.String)
+            }));
         await Users.Indexes.CreateOneAsync(new CreateIndexModel<User>(
             Builders<User>.IndexKeys.Ascending(x => x.Provider).Ascending(x => x.ProviderId)));
 

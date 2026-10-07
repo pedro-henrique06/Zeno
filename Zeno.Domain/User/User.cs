@@ -13,6 +13,8 @@ public class User
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+    /// <summary>Índice cego (HMAC) do e-mail, usado para buscar o usuário já que o e-mail é gravado criptografado.</summary>
+    public string? EmailHash { get; set; }
     public string? Phone { get; set; }
     public string? Document { get; set; }
     public DateTime? BirthDate { get; set; }
