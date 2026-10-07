@@ -10,7 +10,7 @@ public class EncryptedSerializerTests
 {
     private const string Key = "test-key-with-enough-entropy-1234567890";
 
-    private sealed class SecretBag
+    public sealed class SecretBag
     {
         public string? Text { get; set; }
         public decimal Amount { get; set; }
@@ -54,8 +54,9 @@ public class EncryptedSerializerTests
         Assert.StartsWith("v2.", doc["MaybeAmount"].AsString);
         Assert.StartsWith("ENC:v2.", doc["Birth"].AsString);
         Assert.DoesNotContain("Maria", doc.ToJson());
-        Assert.DoesNotContain("1234", doc.ToJson());
-        Assert.DoesNotContain("1990", doc.ToJson());
+        // Characters that cannot appear in base64, so these checks can never fail by chance.
+        Assert.DoesNotContain("1234.56", doc.ToJson());
+        Assert.DoesNotContain("1990-05-17", doc.ToJson());
     }
 
     [Fact]
