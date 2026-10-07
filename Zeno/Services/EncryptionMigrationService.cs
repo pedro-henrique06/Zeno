@@ -20,17 +20,20 @@ public class EncryptionMigrationService : BackgroundService
 
     private readonly ZenoMongoContext _context;
     private readonly IEncryptionService _encryption;
+    private readonly IEmailBlindIndex _emailBlindIndex;
     private readonly IConfiguration _configuration;
     private readonly ILogger<EncryptionMigrationService> _logger;
 
     public EncryptionMigrationService(
         ZenoMongoContext context,
         IEncryptionService encryption,
+        IEmailBlindIndex emailBlindIndex,
         IConfiguration configuration,
         ILogger<EncryptionMigrationService> logger)
     {
         _context = context;
         _encryption = encryption;
+        _emailBlindIndex = emailBlindIndex;
         _configuration = configuration;
         _logger = logger;
     }
@@ -103,6 +106,9 @@ public class EncryptionMigrationService : BackgroundService
                     var entity = await typed.Find(filter).FirstOrDefaultAsync(ct);
                     if (entity is null)
                         continue;
+
+                    if (entity is Zeno.Domain.User.User user)
+                        user.EmailHash = _emailBlindIndex.Compute(user.Email);
 
                     // Loading through the class map decrypts (or passes plain values through); writing encrypts.
                     await typed.ReplaceOneAsync(filter, entity, cancellationToken: ct);

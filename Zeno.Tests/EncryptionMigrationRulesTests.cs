@@ -150,7 +150,7 @@ public class EncryptionMigrationRulesTests
         // Keep in sync with the class maps in ZenoMongoContext.
         var expected = new Dictionary<string, string[]>
         {
-            ["users"] = new[] { "Name", "Phone", "Document", "DailyBudget", "BirthDate" },
+            ["users"] = new[] { "Name", "Email", "Phone", "Document", "DailyBudget", "BirthDate" },
             ["entries"] = new[] { "Title", "Description", "Value" },
             ["houses"] = new[] { "Name", "Description", "GoalName", "GoalTargetAmount" },
             ["goals"] = new[] { "Name", "TargetAmount", "MonthlyContribution", "InitialAmount" },

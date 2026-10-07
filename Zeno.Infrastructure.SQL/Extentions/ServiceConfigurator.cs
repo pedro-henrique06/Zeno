@@ -12,6 +12,7 @@ public static class ServiceConfigurator
     public static IServiceCollection AddInfrastructureSQL(this IServiceCollection services, string connectionString, string encryptionKey)
     {
         services.AddSingleton<IEncryptionService>(_ => new AesEncryptionService(encryptionKey));
+        services.AddSingleton<IEmailBlindIndex>(_ => new EmailBlindIndex(encryptionKey));
         services.AddSingleton<ZenoMongoContext>(sp => new ZenoMongoContext(connectionString, sp.GetRequiredService<IEncryptionService>()));
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IEntryRepository, EntryRepository>();
