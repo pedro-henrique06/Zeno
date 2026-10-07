@@ -26,7 +26,8 @@ public class RoutingPushNotificationSender : IPushNotificationSender
         var otherTokens = tokens.Where(t => !ExpoPushNotificationSender.IsExpoToken(t)).ToList();
 
         var expoResult = await _expo.SendAsync(expoTokens, message, cancellationToken);
-        var otherResult = otherTokens.Count == 0
+        // Sem credencial do Firebase os tokens web/FCM nao tem como sair; nao vale nem chamar o remetente de log.
+        var otherResult = otherTokens.Count == 0 || !_fallback.IsConfigured
             ? PushSendResult.Empty
             : await _fallback.SendAsync(otherTokens, message, cancellationToken);
 
