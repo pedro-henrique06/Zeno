@@ -65,6 +65,46 @@ public class ZenoMongoContext
                 cm.GetMemberMap(u => u.Name).SetSerializer(encryptedString);
                 cm.GetMemberMap(u => u.Phone).SetSerializer(encryptedString);
                 cm.GetMemberMap(u => u.Document).SetSerializer(encryptedString);
+                cm.GetMemberMap(u => u.BirthDate).SetSerializer(new EncryptedNullableDateTimeSerializer(encryptionService));
+            });
+        }
+
+        if (!BsonClassMap.IsClassMapRegistered(typeof(Tag)))
+        {
+            BsonClassMap.RegisterClassMap<Tag>(cm =>
+            {
+                cm.AutoMap();
+                cm.GetMemberMap(t => t.Name).SetSerializer(encryptedString);
+            });
+        }
+
+        if (!BsonClassMap.IsClassMapRegistered(typeof(MonthlyExpenseCategory)))
+        {
+            BsonClassMap.RegisterClassMap<MonthlyExpenseCategory>(cm =>
+            {
+                cm.AutoMap();
+                cm.GetMemberMap(c => c.Name).SetSerializer(encryptedString);
+                cm.GetMemberMap(c => c.Amount).SetSerializer(encryptedDecimal);
+            });
+        }
+
+        if (!BsonClassMap.IsClassMapRegistered(typeof(CaptureRule)))
+        {
+            BsonClassMap.RegisterClassMap<CaptureRule>(cm =>
+            {
+                cm.AutoMap();
+                cm.GetMemberMap(r => r.Match).SetSerializer(encryptedString);
+            });
+        }
+
+        if (!BsonClassMap.IsClassMapRegistered(typeof(PushSubscription)))
+        {
+            BsonClassMap.RegisterClassMap<PushSubscription>(cm =>
+            {
+                cm.AutoMap();
+                // Endpoint stays readable on purpose: it is the lookup and unique-index key.
+                cm.GetMemberMap(p => p.P256dh).SetSerializer(encryptedString);
+                cm.GetMemberMap(p => p.Auth).SetSerializer(encryptedString);
             });
         }
 
@@ -166,6 +206,9 @@ public class ZenoMongoContext
             Builders<NotificationPreference>.IndexKeys.Ascending(x => x.UserId),
             new CreateIndexOptions { Unique = true }));
     }
+
+    /// <summary>Acesso cru (BsonDocument) a uma coleção, usado pela migração de criptografia.</summary>
+    public IMongoCollection<BsonDocument> GetRawCollection(string name) => _database.GetCollection<BsonDocument>(name);
 
     public IMongoCollection<User> Users => _database.GetCollection<User>("users");
     public IMongoCollection<Entry> Entries => _database.GetCollection<Entry>("entries");

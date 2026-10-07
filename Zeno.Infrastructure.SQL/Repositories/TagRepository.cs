@@ -21,10 +21,9 @@ public class TagRepository : ITagRepository
 
     public async Task<IEnumerable<TagEntity>> GetByUserAsync(Guid userId)
     {
-        return await _context.Tags
-            .Find(x => x.UserId == userId)
-            .SortBy(x => x.Name)
-            .ToListAsync();
+        // Name is encrypted, so the database cannot sort by it: sort the decrypted names here.
+        var tags = await _context.Tags.Find(x => x.UserId == userId).ToListAsync();
+        return tags.OrderBy(x => x.Name, StringComparer.InvariantCultureIgnoreCase).ToList();
     }
 
     public async Task<TagEntity> CreateAsync(TagEntity tag)

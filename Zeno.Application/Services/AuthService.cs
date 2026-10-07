@@ -194,7 +194,16 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> RefreshTokenAsync(string refreshToken)
     {
-        var storedToken = await _refreshTokenRepository.GetByTokenAsync(refreshToken);
+        // The database keeps only the hash. Plain tokens issued before hashing existed are still accepted
+        // until the migration converts them, but a value that is itself a stored hash is never a valid token.
+        var storedToken = await _refreshTokenRepository.GetByTokenAsync(TokenHasher.Hash(refreshToken));
+        if (storedToken is null)
+        {
+            var legacy = await _refreshTokenRepository.GetByTokenAsync(refreshToken);
+            if (legacy is not null && !TokenHasher.IsHash(legacy.Token))
+                storedToken = legacy;
+        }
+
         if (storedToken is null || !storedToken.IsActive)
             throw new AppValidationException(new FluentValidation.Results.ValidationResult(
                 new List<FluentValidation.Results.ValidationFailure>
@@ -210,7 +219,7 @@ public class AuthService : IAuthService
                     new("RefreshToken", "Usuário não encontrado.")
                 }));
 
-        await _refreshTokenRepository.RevokeAsync(user.Id, refreshToken);
+        await _refreshTokenRepository.RevokeAsync(user.Id, storedToken.Token);
 
         var (token, newRefreshToken) = await GenerateTokensAsync(user);
 
@@ -272,7 +281,7 @@ public class AuthService : IAuthService
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Token = refreshToken,
+            Token = TokenHasher.Hash(refreshToken),
             ExpiresAt = DateTime.UtcNow.AddDays(30),
             CreatedAt = DateTime.UtcNow
         };
