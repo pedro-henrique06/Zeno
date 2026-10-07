@@ -61,7 +61,7 @@ public class AuthController : AppControllerBase
 
     [AllowAnonymous]
     [HttpGet("oauth/{provider}")]
-    public IActionResult InitiateOAuthLogin(string provider)
+    public IActionResult InitiateOAuthLogin(string provider, [FromQuery] string? app = null)
     {
         var providerLower = provider.ToLower();
         if (providerLower != "google")
@@ -80,7 +80,9 @@ public class AuthController : AppControllerBase
             "&response_type=code" +
             $"&scope={scope}" +
             "&access_type=offline" +
-            "&prompt=select_account";
+            "&prompt=select_account" +
+            // O app nativo pede app=1; o Google devolve o state no callback para sabermos para onde voltar.
+            (app == "1" ? $"&state={OAuthReturnTarget.AppState}" : string.Empty);
 
         return Redirect(authorizationUrl);
     }
@@ -89,7 +91,7 @@ public class AuthController : AppControllerBase
     [HttpGet("oauth/{provider}/callback")]
     public async Task<IActionResult> HandleOAuthCallback(string provider, [FromQuery] string? code, [FromQuery] string? error, [FromQuery] string? state)
     {
-        var frontendLoginUrl = $"{_authService.GetFrontendBaseUrl()}/login?oauthError=1";
+        var frontendLoginUrl = OAuthReturnTarget.Failure(state, _authService.GetFrontendBaseUrl());
 
         try
         {
@@ -124,7 +126,7 @@ public class AuthController : AppControllerBase
                 return Redirect(frontendLoginUrl);
 
             var result = await _authService.HandleOAuthCallbackAsync(provider, userInfo.id ?? "", userInfo.email ?? "", userInfo.name ?? "");
-            return Redirect($"{_authService.GetFrontendBaseUrl()}/auth/callback?token={Uri.EscapeDataString(result.Token)}&refreshToken={Uri.EscapeDataString(result.RefreshToken)}");
+            return Redirect(OAuthReturnTarget.Success(state, _authService.GetFrontendBaseUrl(), result.Token, result.RefreshToken));
         }
         catch (Exception ex)
         {
