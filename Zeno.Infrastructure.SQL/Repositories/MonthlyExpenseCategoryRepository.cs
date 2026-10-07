@@ -47,8 +47,18 @@ public class MonthlyExpenseCategoryRepository : IMonthlyExpenseCategoryRepositor
 
     public async Task MultiplyAmountsForUserAsync(Guid userId, decimal factor)
     {
+        // Amount is encrypted, so $mul cannot act in the database: load, recalculate and write back in bulk.
         var filter = Builders<MonthlyExpenseCategoryEntity>.Filter.Eq(x => x.UserId, userId);
-        var update = Builders<MonthlyExpenseCategoryEntity>.Update.Mul(x => x.Amount, factor);
-        await _context.MonthlyExpenseCategories.UpdateManyAsync(filter, update);
+        var categories = await _context.MonthlyExpenseCategories.Find(filter).ToListAsync();
+        if (categories.Count == 0) return;
+
+        var writes = categories.Select(category =>
+        {
+            category.Amount = Math.Round(category.Amount * factor, 2);
+            return new ReplaceOneModel<MonthlyExpenseCategoryEntity>(
+                Builders<MonthlyExpenseCategoryEntity>.Filter.Eq(x => x.Id, category.Id), category);
+        });
+
+        await _context.MonthlyExpenseCategories.BulkWriteAsync(writes);
     }
 }

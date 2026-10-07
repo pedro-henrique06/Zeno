@@ -87,6 +87,8 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 builder.Services.AddValidatorsFromAssemblyContaining<Zeno.Application.Validators.CreateEntryRequestValidator>();
+if (builder.Configuration["Encryption:Key"]!.Length < 32)
+    Console.WriteLine("[Security] Encryption__Key has fewer than 32 characters. Use a long random value (and keep a backup of it: without the key encrypted data cannot be recovered).");
 var connStr = builder.Configuration["Database:ConnectionString"]!;
 builder.Services.AddInfrastructureSQL(connStr, builder.Configuration["Encryption:Key"]!);
 builder.Services.AddScoped<IEntryService, EntryService>();
@@ -131,6 +133,7 @@ builder.Services.AddSingleton<IPushNotificationSender>(sp =>
 
 builder.Services.AddHostedService<NotificationHostedService>();
 builder.Services.AddHostedService<DailyNotificationJob>();
+builder.Services.AddHostedService<EncryptionMigrationService>();
 builder.Services.AddHealthChecks();
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");

@@ -25,10 +25,9 @@ public class HouseRepository : IHouseRepository
         var builder = Builders<HouseEntity>.Filter;
         var filter = builder.Eq(x => x.UserId, userId)
                    | builder.ElemMatch(x => x.Members, m => m.UserId == userId);
-        return await _context.Houses
-            .Find(filter)
-            .SortBy(x => x.Name)
-            .ToListAsync();
+        // Name is encrypted, so the database cannot sort by it: sort the decrypted names here.
+        var houses = await _context.Houses.Find(filter).ToListAsync();
+        return houses.OrderBy(x => x.Name, StringComparer.InvariantCultureIgnoreCase).ToList();
     }
 
     public async Task<HouseEntity> CreateAsync(HouseEntity house)

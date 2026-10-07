@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Zeno.Application\Zeno.Application.csproj" />
     <ProjectReference Include="..\Zeno.Domain\Zeno.Domain.csproj" />
+    <ProjectReference Include="..\Zeno.Infrastructure.SQL\Zeno.Infrastructure.SQL.csproj" />
   </ItemGroup>
 
 </Project>
