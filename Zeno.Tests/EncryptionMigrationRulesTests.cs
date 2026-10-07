@@ -63,7 +63,7 @@ public class EncryptionMigrationRulesTests
     [Fact]
     public void NullableDecimal_Null_IsIgnored()
     {
-        Assert.False(EncryptionMigrationRules.NeedsMigration("users", new BsonDocument { { "DailyBudget", BsonNull.Value } }));
+        Assert.False(EncryptionMigrationRules.NeedsMigration("users", new BsonDocument { { "DailyBudget", BsonNull.Value }, { "EmailHash", "abc" } }));
     }
 
     [Fact]
@@ -72,7 +72,7 @@ public class EncryptionMigrationRulesTests
         Assert.True(EncryptionMigrationRules.NeedsMigration("users",
             new BsonDocument { { "BirthDate", new BsonDateTime(DateTime.UtcNow) } }));
         Assert.False(EncryptionMigrationRules.NeedsMigration("users",
-            new BsonDocument { { "BirthDate", Current("1990-05-17T00:00:00.0000000Z") } }));
+            new BsonDocument { { "BirthDate", Current("1990-05-17T00:00:00.0000000Z") }, { "EmailHash", "abc" } }));
     }
 
     [Fact]
