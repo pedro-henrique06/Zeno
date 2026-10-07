@@ -118,17 +118,19 @@ builder.Services.AddSingleton<IPushNotificationSender>(sp =>
 {
     var pushOptions = sp.GetRequiredService<IOptions<PushOptions>>();
 
-    if (!pushOptions.Value.Firebase.IsComplete)
-        return new LoggingPushNotificationSender(sp.GetRequiredService<ILogger<LoggingPushNotificationSender>>());
-
     // PooledConnectionLifetime evita DNS obsoleto num HttpClient de vida longa.
     var handler = new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) };
     var httpClient = new HttpClient(handler);
 
-    return new FirebasePushNotificationSender(
-        httpClient,
-        pushOptions,
-        sp.GetRequiredService<ILogger<FirebasePushNotificationSender>>());
+    // Tokens web/FCM: sem credencial completa do Firebase o envio vira log.
+    IPushNotificationSender fallback = pushOptions.Value.Firebase.IsComplete
+        ? new FirebasePushNotificationSender(httpClient, pushOptions, sp.GetRequiredService<ILogger<FirebasePushNotificationSender>>())
+        : new LoggingPushNotificationSender(sp.GetRequiredService<ILogger<LoggingPushNotificationSender>>());
+
+    // Tokens do app nativo (Expo) saem pelo servico do Expo, que nao exige credencial no servidor.
+    var expo = new ExpoPushNotificationSender(httpClient, pushOptions, sp.GetRequiredService<ILogger<ExpoPushNotificationSender>>());
+
+    return new RoutingPushNotificationSender(expo, fallback);
 });
 
 builder.Services.AddHostedService<NotificationHostedService>();

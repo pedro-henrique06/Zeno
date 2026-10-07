@@ -5,6 +5,14 @@ public class PushOptions
     public const string SectionName = "Push";
 
     public FirebaseOptions Firebase { get; set; } = new();
+
+    public ExpoOptions Expo { get; set; } = new();
+}
+
+public class ExpoOptions
+{
+    /// <summary>Opcional: access token do Expo, so necessario se a seguranca reforcada de push estiver ligada no projeto.</summary>
+    public string? AccessToken { get; set; }
 }
 
 public class FirebaseOptions
