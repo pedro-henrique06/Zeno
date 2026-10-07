@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Text.Json.Serialization;
 using Zeno.Application.Interfaces;
 using Zeno.Application.Requests;
+using Zeno.Application.Services;
 
 namespace Zeno.Controllers;
 
