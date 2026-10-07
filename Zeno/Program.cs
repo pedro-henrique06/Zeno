@@ -193,6 +193,7 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddAuthorization();
+builder.Services.AddZenoRateLimiting();
 
 var app = builder.Build();
 
@@ -210,10 +211,17 @@ app.UseSwaggerUI(c =>
 
 app.UseCors();
 
-app.UseForwardedHeaders(new ForwardedHeadersOptions
+// A API roda atras do proxy da hospedagem, que acrescenta o IP real do cliente ao fim do X-Forwarded-For.
+// Sem confiar nele todo mundo apareceria com o IP do proxy e dividiria o mesmo limite de requisicoes.
+var forwardedHeaders = new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-});
+};
+forwardedHeaders.KnownIPNetworks.Clear();
+forwardedHeaders.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeaders);
+
+app.UseRateLimiter();
 
 app.Use(async (context, next) =>
 {

@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Zeno.Services;
 using System.Text.Json.Serialization;
 using Zeno.Application.Interfaces;
 using Zeno.Application.Requests;
@@ -47,6 +49,7 @@ public class AuthController : AppControllerBase
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimiting.Auth)]
     [HttpPost("login")]
     public Task<IActionResult> Login([FromBody] LoginRequest request)
     {
@@ -54,6 +57,7 @@ public class AuthController : AppControllerBase
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimiting.Auth)]
     [HttpPost("register")]
     public Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
@@ -61,6 +65,7 @@ public class AuthController : AppControllerBase
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimiting.Auth)]
     [HttpGet("oauth/{provider}")]
     public IActionResult InitiateOAuthLogin(string provider, [FromQuery] string? app = null)
     {
@@ -89,6 +94,7 @@ public class AuthController : AppControllerBase
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimiting.Auth)]
     [HttpGet("oauth/{provider}/callback")]
     public async Task<IActionResult> HandleOAuthCallback(string provider, [FromQuery] string? code, [FromQuery] string? error, [FromQuery] string? state)
     {
@@ -146,6 +152,7 @@ public class AuthController : AppControllerBase
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimiting.Refresh)]
     [HttpPost("refresh-token")]
     public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
     {
