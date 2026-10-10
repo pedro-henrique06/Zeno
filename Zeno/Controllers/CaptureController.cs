@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Zeno.Services;
 using Zeno.Application.Interfaces;
 using Zeno.Application.Requests.Capture;
 using Zeno.Application.Responses.Capture;
@@ -71,6 +73,7 @@ public class CaptureController : AppControllerBase
 
     /// <summary>Cria um lançamento a partir de uma automação. Autenticado pelo header X-Capture-Key.</summary>
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimiting.Key)]
     [HttpPost("entry")]
     public async Task<IActionResult> CaptureEntry([FromBody] CaptureEntryRequest request, [FromQuery] string? tz)
     {

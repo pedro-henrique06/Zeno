@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Zeno.Services;
 using Zeno.Application.Interfaces;
 using Zeno.Application.Responses.Common;
 using Zeno.Application.Responses.Widgets;
@@ -44,6 +46,7 @@ public class WidgetController : AppControllerBase
 
     /// <summary>Resumo somente leitura para o widget. Autenticado pelo header X-Widget-Key.</summary>
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimiting.Key)]
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary([FromQuery] string? tz)
     {
