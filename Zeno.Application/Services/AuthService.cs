@@ -24,6 +24,7 @@ public class AuthService : IAuthService
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IConfiguration _configuration;
     private readonly ITokenBlacklistService _tokenBlacklistService;
+    private readonly IAppleIdentityTokenValidator _appleTokenValidator;
 
     public AuthService(
         IValidator<LoginRequest> loginValidator,
@@ -31,7 +32,8 @@ public class AuthService : IAuthService
         IUserRepository userRepository,
         IRefreshTokenRepository refreshTokenRepository,
         IConfiguration configuration,
-        ITokenBlacklistService tokenBlacklistService)
+        ITokenBlacklistService tokenBlacklistService,
+        IAppleIdentityTokenValidator appleTokenValidator)
     {
         _loginValidator = loginValidator;
         _registerValidator = registerValidator;
@@ -39,6 +41,7 @@ public class AuthService : IAuthService
         _refreshTokenRepository = refreshTokenRepository;
         _configuration = configuration;
         _tokenBlacklistService = tokenBlacklistService;
+        _appleTokenValidator = appleTokenValidator;
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
@@ -162,6 +165,64 @@ public class AuthService : IAuthService
                 {
                     new("Email", "Este e-mail já possui cadastro com senha. Faça login com e-mail e senha.")
                 }));
+        }
+
+        var (token, refreshToken) = await GenerateTokensAsync(user);
+
+        return new AuthResponse
+        {
+            UserId = user.Id,
+            Name = user.Name,
+            Email = user.Email,
+            Phone = user.Phone,
+            Document = user.Document,
+            BirthDate = user.BirthDate,
+            OAuthProvider = user.Provider.ToString(),
+            Token = token,
+            RefreshToken = refreshToken
+        };
+    }
+
+    public async Task<AuthResponse> LoginWithAppleAsync(AppleLoginRequest request)
+    {
+        var apple = await _appleTokenValidator.ValidateAsync(request.IdentityToken);
+
+        // Returning Apple user first; then an account with the same email, under the same rules as
+        // Google (an email+password account must keep signing in with its password).
+        var user = await _userRepository.GetByProviderAsync(nameof(OAuthProvider.Apple), apple.Subject);
+        if (user is null && apple.Email is not null)
+        {
+            user = await _userRepository.GetByEmailAsync(apple.Email);
+            if (user is not null && user.Provider == OAuthProvider.None && !string.IsNullOrEmpty(user.PasswordHash))
+                throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                    new List<FluentValidation.Results.ValidationFailure>
+                    {
+                        new("Email", "Este e-mail já possui cadastro com senha. Faça login com e-mail e senha.")
+                    }));
+        }
+
+        if (user is null)
+        {
+            if (apple.Email is null)
+                throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                    new List<FluentValidation.Results.ValidationFailure>
+                    {
+                        new("Email", "Para criar a conta, permita compartilhar o e-mail (pode ser o e-mail oculto da Apple).")
+                    }));
+
+            var name = request.FullName?.Trim();
+            user = new User
+            {
+                Id = Guid.NewGuid(),
+                Name = string.IsNullOrEmpty(name) ? apple.Email.Split('@')[0] : name,
+                Email = apple.Email,
+                Provider = OAuthProvider.Apple,
+                ProviderId = apple.Subject,
+                EmailVerified = apple.EmailVerified,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _userRepository.CreateAsync(user);
         }
 
         var (token, refreshToken) = await GenerateTokensAsync(user);
