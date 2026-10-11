@@ -13,6 +13,10 @@ public sealed class CreateEntryRequest
     public bool IsRecurring { get; set; }
     public DateTime? RecurrenceEndDate { get; set; }
     public Guid? HouseId { get; set; }
+
+    /// <summary>Set by Apple Pay capture only; never read from the API body.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Guid? CaptureCardId { get; set; }
 }
 
 public sealed class UpdateEntryRequest

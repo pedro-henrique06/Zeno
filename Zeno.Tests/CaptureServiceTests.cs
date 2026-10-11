@@ -19,6 +19,10 @@ public class CaptureServiceTests
     private readonly Mock<ICaptureRuleRepository> _ruleRepo = new();
     private readonly Mock<ITagRepository> _tagRepo = new();
     private readonly Mock<IEntryService> _entryService = new();
+    private readonly Mock<ICaptureCardRepository> _cardRepo = new();
+    private readonly Mock<IEntryRepository> _entryRepo = new();
+    private readonly List<CaptureCard> _cards = new();
+    private CreateEntryRequest? _lastCreated;
     private readonly FakeClock _clock = new();
     private readonly Guid _userId = Guid.NewGuid();
 
@@ -50,7 +54,19 @@ public class CaptureServiceTests
         _tagRepo.Setup(r => r.GetByIdAsync(It.IsAny<Guid>()))
             .ReturnsAsync((Guid id) => _tags.FirstOrDefault(t => t.Id == id));
 
+        // In-memory card store.
+        _cardRepo.Setup(r => r.GetByUserAsync(It.IsAny<Guid>()))
+            .ReturnsAsync((Guid u) => (IReadOnlyList<CaptureCard>)_cards.Where(c => c.UserId == u).ToList());
+        _cardRepo.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<Guid>()))
+            .ReturnsAsync((Guid u, Guid id) => _cards.FirstOrDefault(c => c.UserId == u && c.Id == id));
+        _cardRepo.Setup(r => r.GetByNameKeyAsync(It.IsAny<Guid>(), It.IsAny<string>()))
+            .ReturnsAsync((Guid u, string k) => _cards.FirstOrDefault(c => c.UserId == u && c.NameKey == k));
+        _cardRepo.Setup(r => r.UpsertAsync(It.IsAny<CaptureCard>()))
+            .Callback<CaptureCard>(c => { _cards.RemoveAll(x => x.Id == c.Id); _cards.Add(c); })
+            .Returns(Task.CompletedTask);
+
         _entryService.Setup(s => s.CreateEntry(It.IsAny<Guid>(), It.IsAny<CreateEntryRequest>()))
+            .Callback((Guid _, CreateEntryRequest r) => _lastCreated = r)
             .ReturnsAsync((Guid _, CreateEntryRequest r) => new EntryEntity
             {
                 Id = Guid.NewGuid(),
@@ -63,7 +79,8 @@ public class CaptureServiceTests
             });
     }
 
-    private CaptureService CreateService() => new(_keyRepo.Object, _ruleRepo.Object, _tagRepo.Object, _entryService.Object, _clock);
+    private CaptureService CreateService() =>
+        new(_keyRepo.Object, _ruleRepo.Object, _tagRepo.Object, _entryService.Object, _cardRepo.Object, _entryRepo.Object, _clock);
 
     private static JsonElement Json(string raw) => JsonDocument.Parse(raw).RootElement.Clone();
 
@@ -399,6 +416,102 @@ public class CaptureServiceTests
 
         await service.RevokeKeyAsync(_userId);
         _keyRepo.Verify(r => r.DeleteByUserAsync(_userId), Times.Once);
+    }
+
+    private Task<Zeno.Application.Responses.Capture.CaptureEntryResponse?> Buy(CaptureService service, string key, string card, string title = "Padaria", string amount = "24.50", string? kind = null)
+    {
+        _clock.UtcNow = _clock.UtcNow.AddMinutes(5); // past the duplicate window
+        return service.CaptureAsync(key, new CaptureEntryRequest { Title = title, Amount = Json(amount), Card = card, Kind = kind }, "America/Sao_Paulo");
+    }
+
+    [Fact]
+    public async Task Capture_NewCard_IsRemembered_Unclassified_AndEntryIsDiario()
+    {
+        var (service, key) = await ServiceWithKeyAsync();
+
+        var result = await Buy(service, key, "Nubank");
+
+        var card = Assert.Single(_cards);
+        Assert.Equal("Nubank", card.Name);
+        Assert.Null(card.Kind);
+        Assert.Equal(1, card.PurchaseCount);
+        Assert.Equal(EntryKind.Diario, result!.Kind);
+        Assert.Equal(card.Id, _lastCreated!.CaptureCardId);
+        Assert.False(result.CardClassified);
+    }
+
+    [Fact]
+    public async Task Capture_SameCardDifferentCase_IsOneCard()
+    {
+        var (service, key) = await ServiceWithKeyAsync();
+
+        await Buy(service, key, "Nubank");
+        await Buy(service, key, "NUBANK", title: "Mercado");
+
+        var card = Assert.Single(_cards);
+        Assert.Equal(2, card.PurchaseCount);
+    }
+
+    [Fact]
+    public async Task Capture_CreditCard_BecomesGastoComCartao()
+    {
+        var (service, key) = await ServiceWithKeyAsync();
+        await Buy(service, key, "Nubank");
+        await service.ClassifyCardAsync(_userId, _cards[0].Id, new ClassifyCaptureCardRequest { Type = "credit" });
+
+        var result = await Buy(service, key, "Nubank", title: "Mercado");
+
+        Assert.Equal(EntryKind.Cartao, result!.Kind);
+        Assert.True(result.CardClassified);
+    }
+
+    [Fact]
+    public async Task Capture_ExplicitKindFromShortcut_WinsOverTheCard()
+    {
+        var (service, key) = await ServiceWithKeyAsync();
+        await Buy(service, key, "Nubank");
+        await service.ClassifyCardAsync(_userId, _cards[0].Id, new ClassifyCaptureCardRequest { Type = "credit" });
+
+        var result = await Buy(service, key, "Nubank", title: "Farmácia", kind: "diario");
+
+        Assert.Equal(EntryKind.Diario, result!.Kind);
+    }
+
+    [Fact]
+    public async Task Classify_ApplyToPast_ReclassifiesThatCardsEntries()
+    {
+        var (service, key) = await ServiceWithKeyAsync();
+        await Buy(service, key, "Itaú");
+        var cardId = _cards[0].Id;
+        _entryRepo.Setup(r => r.SetKindByCaptureCardAsync(_userId, cardId, EntryKind.Cartao)).ReturnsAsync(3);
+
+        var result = await service.ClassifyCardAsync(_userId, cardId, new ClassifyCaptureCardRequest { Type = "credit", ApplyToPast = true });
+
+        Assert.Equal("credit", result.Card.Type);
+        Assert.Equal(3, result.UpdatedEntries);
+    }
+
+    [Fact]
+    public async Task Classify_WithoutApplyToPast_LeavesEarlierEntries()
+    {
+        var (service, key) = await ServiceWithKeyAsync();
+        await Buy(service, key, "Itaú");
+
+        await service.ClassifyCardAsync(_userId, _cards[0].Id, new ClassifyCaptureCardRequest { Type = "debit" });
+
+        _entryRepo.Verify(r => r.SetKindByCaptureCardAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<EntryKind>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Classify_AnotherUsersCard_OrBadType_IsRejected()
+    {
+        var (service, key) = await ServiceWithKeyAsync();
+        await Buy(service, key, "Itaú");
+
+        await Assert.ThrowsAsync<AppValidationException>(() =>
+            service.ClassifyCardAsync(Guid.NewGuid(), _cards[0].Id, new ClassifyCaptureCardRequest { Type = "credit" }));
+        await Assert.ThrowsAsync<AppValidationException>(() =>
+            service.ClassifyCardAsync(_userId, _cards[0].Id, new ClassifyCaptureCardRequest { Type = "prepaid" }));
     }
 
     private sealed class FakeClock : IClock

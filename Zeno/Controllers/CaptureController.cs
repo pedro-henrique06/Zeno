@@ -71,6 +71,26 @@ public class CaptureController : AppControllerBase
             NoContent());
     }
 
+    /// <summary>Cartões vistos nas compras capturadas, do uso mais recente para o mais antigo.</summary>
+    [HttpGet("cards")]
+    public async Task<IActionResult> GetCards()
+    {
+        var userId = GetUserId();
+        return await HandleAsync(
+            () => _service.GetCardsAsync(userId),
+            data => Ok(ApiResponse<IReadOnlyList<CaptureCardResponse>>.Ok(data)));
+    }
+
+    /// <summary>Marca o cartão como crédito ou débito; opcionalmente reclassifica as compras anteriores.</summary>
+    [HttpPut("cards/{id:guid}")]
+    public async Task<IActionResult> ClassifyCard(Guid id, [FromBody] ClassifyCaptureCardRequest request)
+    {
+        var userId = GetUserId();
+        return await HandleAsync(
+            () => _service.ClassifyCardAsync(userId, id, request),
+            data => Ok(ApiResponse<ClassifyCaptureCardResponse>.Ok(data)));
+    }
+
     /// <summary>Cria um lançamento a partir de uma automação. Autenticado pelo header X-Capture-Key.</summary>
     [AllowAnonymous]
     [EnableRateLimiting(RateLimiting.Key)]

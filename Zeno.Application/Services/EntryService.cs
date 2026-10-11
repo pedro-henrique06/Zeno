@@ -108,7 +108,8 @@ public class EntryService : IEntryService
             Date = request.Date,
             IsRecurring = request.IsRecurring,
             RecurrenceEndDate = request.RecurrenceEndDate,
-            HouseId = request.HouseId
+            HouseId = request.HouseId,
+            CaptureCardId = request.CaptureCardId
         };
 
         await _entryRepository.CreateAsync(entry);
@@ -144,7 +145,9 @@ public class EntryService : IEntryService
             Date = request.Date,
             IsRecurring = request.IsRecurring,
             RecurrenceEndDate = request.RecurrenceEndDate,
-            HouseId = request.HouseId
+            HouseId = request.HouseId,
+            // Not editable: keeps the link to the Apple Pay card it was captured from.
+            CaptureCardId = existing.CaptureCardId
         };
 
         await _entryRepository.UpdateAsync(updatedEntry);

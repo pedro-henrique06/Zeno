@@ -26,5 +26,8 @@ public class Entry
 
     public Guid? HouseId { get; set; }
 
+    /// <summary>Card this entry was captured from via Apple Pay, if any; lets a card's kind be reapplied.</summary>
+    public Guid? CaptureCardId { get; set; }
+
     public Entry() { }
 }

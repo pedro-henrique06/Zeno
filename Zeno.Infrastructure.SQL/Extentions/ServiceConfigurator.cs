@@ -27,6 +27,7 @@ public static class ServiceConfigurator
         services.AddScoped<IWidgetKeyRepository, WidgetKeyRepository>();
         services.AddScoped<ICaptureKeyRepository, CaptureKeyRepository>();
         services.AddScoped<ICaptureRuleRepository, CaptureRuleRepository>();
+        services.AddScoped<ICaptureCardRepository, CaptureCardRepository>();
         services.AddScoped<IDeviceTokenRepository, DeviceTokenRepository>();
         services.AddScoped<INotificationPreferenceRepository, NotificationPreferenceRepository>();
 

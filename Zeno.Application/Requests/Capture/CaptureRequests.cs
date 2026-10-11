@@ -31,3 +31,12 @@ public sealed class AddCaptureRuleRequest
 
     public Guid TagId { get; set; }
 }
+
+public sealed class ClassifyCaptureCardRequest
+{
+    /// <summary>"credit" (purchases become Gasto com cartão) or "debit" (Diário).</summary>
+    public string Type { get; set; } = string.Empty;
+
+    /// <summary>Also change the kind of this card's earlier purchases.</summary>
+    public bool ApplyToPast { get; set; }
+}

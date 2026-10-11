@@ -16,6 +16,9 @@ public interface ICaptureService
     Task<CaptureRuleResponse> AddRuleAsync(Guid userId, AddCaptureRuleRequest request);
     Task DeleteRuleAsync(Guid userId, Guid id);
 
+    Task<IReadOnlyList<CaptureCardResponse>> GetCardsAsync(Guid userId);
+    Task<ClassifyCaptureCardResponse> ClassifyCardAsync(Guid userId, Guid cardId, ClassifyCaptureCardRequest request);
+
     /// <summary>Cria o lançamento do dono da chave; null se a chave for inválida ou revogada.</summary>
     Task<CaptureEntryResponse?> CaptureAsync(string? key, CaptureEntryRequest request, string? timeZoneId);
 }
