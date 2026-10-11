@@ -8,4 +8,5 @@ public interface IPushSubscriptionRepository
     Task<List<PushSubscription>> GetAllAsync();
     Task UpsertAsync(PushSubscription subscription);
     Task DeleteByEndpointAsync(string endpoint);
+    Task DeleteByUserAsync(Guid userId);
 }

@@ -12,4 +12,5 @@ public interface IDeviceTokenRepository
 
     Task DeactivateAsync(string token);
     Task DeleteByUserAndTokenAsync(Guid userId, string token);
+    Task DeleteByUserAsync(Guid userId);
 }

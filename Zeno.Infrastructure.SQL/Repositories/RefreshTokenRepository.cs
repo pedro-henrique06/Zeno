@@ -54,4 +54,9 @@ public class RefreshTokenRepository : IRefreshTokenRepository
 
         await _context.RefreshTokens.UpdateManyAsync(filter, update);
     }
+
+    public async Task DeleteByUserAsync(Guid userId)
+    {
+        await _context.RefreshTokens.DeleteManyAsync(x => x.UserId == userId);
+    }
 }

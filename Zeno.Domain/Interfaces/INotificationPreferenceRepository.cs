@@ -11,4 +11,5 @@ public interface INotificationPreferenceRepository
     Task<IEnumerable<NotificationPreference>> GetAllEnabledAsync();
 
     Task MarkSentAsync(Guid userId, DateOnly localDate);
+    Task DeleteByUserAsync(Guid userId);
 }
