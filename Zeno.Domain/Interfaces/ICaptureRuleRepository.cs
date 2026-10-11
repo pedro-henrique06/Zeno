@@ -10,4 +10,6 @@ public interface ICaptureRuleRepository
 
     /// <summary>Apaga a regra se ela pertencer ao usuário; devolve false se não existir.</summary>
     Task<bool> DeleteAsync(Guid userId, Guid id);
+
+    Task DeleteByUserAsync(Guid userId);
 }

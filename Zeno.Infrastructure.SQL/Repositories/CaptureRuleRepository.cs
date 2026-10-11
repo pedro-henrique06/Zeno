@@ -33,4 +33,9 @@ public class CaptureRuleRepository : ICaptureRuleRepository
         var result = await _context.CaptureRules.DeleteOneAsync(x => x.Id == id && x.UserId == userId);
         return result.DeletedCount > 0;
     }
+
+    public async Task DeleteByUserAsync(Guid userId)
+    {
+        await _context.CaptureRules.DeleteManyAsync(x => x.UserId == userId);
+    }
 }

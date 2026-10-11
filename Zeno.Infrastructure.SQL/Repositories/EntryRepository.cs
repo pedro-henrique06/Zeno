@@ -117,6 +117,11 @@ public class EntryRepository : IEntryRepository
         await _context.Entries.UpdateManyAsync(filter, update);
     }
 
+    public async Task DeleteByUserAsync(Guid userId)
+    {
+        await _context.Entries.DeleteManyAsync(x => x.UserId == userId);
+    }
+
     public async Task MultiplyValuesForUserAsync(Guid userId, decimal factor)
     {
         // Value é criptografado no Mongo, então o operador $mul não pode atuar direto no banco;

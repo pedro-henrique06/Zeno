@@ -45,6 +45,11 @@ public class MonthlyExpenseCategoryRepository : IMonthlyExpenseCategoryRepositor
         await _context.MonthlyExpenseCategories.DeleteOneAsync(x => x.Id == id);
     }
 
+    public async Task DeleteByUserAsync(Guid userId)
+    {
+        await _context.MonthlyExpenseCategories.DeleteManyAsync(x => x.UserId == userId);
+    }
+
     public async Task MultiplyAmountsForUserAsync(Guid userId, decimal factor)
     {
         // Amount is encrypted, so $mul cannot act in the database: load, recalculate and write back in bulk.
