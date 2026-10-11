@@ -18,6 +18,7 @@ using Goal = Zeno.Domain.Goals.Goal;
 using WidgetKey = Zeno.Domain.Widgets.WidgetKey;
 using CaptureKey = Zeno.Domain.Capture.CaptureKey;
 using CaptureRule = Zeno.Domain.Capture.CaptureRule;
+using CaptureCard = Zeno.Domain.Capture.CaptureCard;
 
 namespace Zeno.Infrastructure.SQL.Context;
 
@@ -95,6 +96,15 @@ public class ZenoMongoContext
             {
                 cm.AutoMap();
                 cm.GetMemberMap(r => r.Match).SetSerializer(encryptedString);
+            });
+        }
+
+        if (!BsonClassMap.IsClassMapRegistered(typeof(CaptureCard)))
+        {
+            BsonClassMap.RegisterClassMap<CaptureCard>(cm =>
+            {
+                cm.AutoMap();
+                cm.GetMemberMap(c => c.Name).SetSerializer(encryptedString);
             });
         }
 
@@ -205,6 +215,9 @@ public class ZenoMongoContext
 
         await CaptureRules.Indexes.CreateOneAsync(new CreateIndexModel<CaptureRule>(
             Builders<CaptureRule>.IndexKeys.Ascending(x => x.UserId)));
+        await CaptureCards.Indexes.CreateOneAsync(new CreateIndexModel<CaptureCard>(
+            Builders<CaptureCard>.IndexKeys.Ascending(x => x.UserId).Ascending(x => x.NameKey),
+            new CreateIndexOptions { Unique = true }));
 
         await WidgetKeys.Indexes.CreateOneAsync(new CreateIndexModel<WidgetKey>(
             Builders<WidgetKey>.IndexKeys.Ascending(x => x.UserId),
@@ -236,6 +249,7 @@ public class ZenoMongoContext
     public IMongoCollection<PushSubscription> PushSubscriptions => _database.GetCollection<PushSubscription>("pushsubscriptions");
     public IMongoCollection<House> Houses => _database.GetCollection<House>("houses");
     public IMongoCollection<CaptureRule> CaptureRules => _database.GetCollection<CaptureRule>("capturerules");
+    public IMongoCollection<CaptureCard> CaptureCards => _database.GetCollection<CaptureCard>("capturecards");
     public IMongoCollection<CaptureKey> CaptureKeys => _database.GetCollection<CaptureKey>("capturekeys");
     public IMongoCollection<WidgetKey> WidgetKeys => _database.GetCollection<WidgetKey>("widgetkeys");
     public IMongoCollection<Goal> Goals => _database.GetCollection<Goal>("goals");

@@ -28,6 +28,8 @@ public class CaptureService : ICaptureService
     private readonly ICaptureRuleRepository _ruleRepository;
     private readonly ITagRepository _tagRepository;
     private readonly IEntryService _entryService;
+    private readonly ICaptureCardRepository _cardRepository;
+    private readonly IEntryRepository _entryRepository;
     private readonly IClock _clock;
 
     public CaptureService(
@@ -35,12 +37,16 @@ public class CaptureService : ICaptureService
         ICaptureRuleRepository ruleRepository,
         ITagRepository tagRepository,
         IEntryService entryService,
+        ICaptureCardRepository cardRepository,
+        IEntryRepository entryRepository,
         IClock clock)
     {
         _keyRepository = keyRepository;
         _ruleRepository = ruleRepository;
         _tagRepository = tagRepository;
         _entryService = entryService;
+        _cardRepository = cardRepository;
+        _entryRepository = entryRepository;
         _clock = clock;
     }
 
@@ -125,8 +131,13 @@ public class CaptureService : ICaptureService
             return null;
 
         var value = ParseAmount(request.Amount);
-        var kind = ParseKind(request.Kind);
         var title = NormalizeTitle(request.Title);
+
+        // Kind: what the Shortcut says, else how the user classified this card, else Diário.
+        var cardName = NormalizeDetail(request.Card);
+        var cardKey = cardName is null ? null : CardKey(record.UserId, cardName);
+        var knownCard = cardKey is null ? null : await _cardRepository.GetByNameKeyAsync(record.UserId, cardKey);
+        var kind = !string.IsNullOrWhiteSpace(request.Kind) ? ParseKind(request.Kind) : knownCard?.Kind ?? EntryKind.Diario;
 
         var nowUtc = _clock.UtcNow;
         var date = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, ResolveTimeZone(timeZoneId)).Date;
@@ -147,18 +158,28 @@ public class CaptureService : ICaptureService
             };
         }
 
-        var card = NormalizeDetail(request.Card);
         var category = NormalizeDetail(request.Category);
         var tagId = await ResolveTagAsync(record.UserId, title, category);
+
+        CaptureCard? card = null;
+        if (cardName is not null)
+        {
+            card = knownCard ?? new CaptureCard { Id = Guid.NewGuid(), UserId = record.UserId, NameKey = cardKey!, FirstSeenAt = nowUtc };
+            card.Name = cardName;
+            card.PurchaseCount++;
+            card.LastSeenAt = nowUtc;
+            await _cardRepository.UpsertAsync(card);
+        }
 
         var entry = await _entryService.CreateEntry(record.UserId, new CreateEntryRequest
         {
             Title = title,
             Value = value,
             Kind = kind,
-            Description = BuildDescription(card, category),
+            Description = BuildDescription(cardName, category),
             TagId = tagId,
-            Date = date
+            Date = date,
+            CaptureCardId = card?.Id
         });
 
         record.LastFingerprint = fingerprint;
@@ -174,9 +195,49 @@ public class CaptureService : ICaptureService
             Title = entry.Title,
             Value = entry.Value,
             Kind = entry.Kind,
-            Date = entry.Date
+            Date = entry.Date,
+            CardId = card?.Id,
+            CardClassified = card is null ? null : card.Kind is not null
         };
     }
+
+    public async Task<IReadOnlyList<CaptureCardResponse>> GetCardsAsync(Guid userId)
+    {
+        var cards = await _cardRepository.GetByUserAsync(userId);
+        return cards.Select(ToResponse).ToList();
+    }
+
+    public async Task<ClassifyCaptureCardResponse> ClassifyCardAsync(Guid userId, Guid cardId, ClassifyCaptureCardRequest request)
+    {
+        var kind = (request.Type ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "credit" => EntryKind.Cartao,
+            "debit" => EntryKind.Diario,
+            _ => throw Invalid(nameof(ClassifyCaptureCardRequest.Type), "Tipo inválido. Use credit ou debit.")
+        };
+
+        var card = await _cardRepository.GetByIdAsync(userId, cardId)
+            ?? throw Invalid(nameof(cardId), "Cartão não encontrado.");
+
+        card.Kind = kind;
+        await _cardRepository.UpsertAsync(card);
+
+        var updated = request.ApplyToPast ? await _entryRepository.SetKindByCaptureCardAsync(userId, card.Id, kind) : 0;
+        return new ClassifyCaptureCardResponse { Card = ToResponse(card), UpdatedEntries = updated };
+    }
+
+    private static CaptureCardResponse ToResponse(CaptureCard card) => new()
+    {
+        Id = card.Id,
+        Name = card.Name,
+        Type = card.Kind switch { EntryKind.Cartao => "credit", EntryKind.Diario => "debit", _ => null },
+        PurchaseCount = card.PurchaseCount,
+        LastSeenAt = card.LastSeenAt
+    };
+
+    /// <summary>Same card even if the Wallet sends "NUBANK" one day and "Nubank" the next.</summary>
+    private static string CardKey(Guid userId, string cardName) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{userId:N}:{Normalize(cardName)}")));
 
     /// <summary>Regras do usuário primeiro; depois, uma tag cujo nome combine com a categoria.</summary>
     private async Task<Guid?> ResolveTagAsync(Guid userId, string title, string? category)

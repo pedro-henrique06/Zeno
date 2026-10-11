@@ -15,6 +15,7 @@ public class UserServiceResetAccountTests
     private readonly Mock<ITagRepository> _tagRepo = new();
     private readonly Mock<IGoalRepository> _goalRepo = new();
     private readonly Mock<ICaptureRuleRepository> _ruleRepo = new();
+    private readonly Mock<ICaptureCardRepository> _cardRepo = new();
     private readonly Guid _userId = Guid.NewGuid();
 
     private UserService CreateService() =>
@@ -26,6 +27,7 @@ public class UserServiceResetAccountTests
             _tagRepo.Object,
             _goalRepo.Object,
             _ruleRepo.Object,
+            _cardRepo.Object,
             Mock.Of<IExchangeRateService>());
 
     [Fact]
@@ -42,6 +44,7 @@ public class UserServiceResetAccountTests
         _categoryRepo.Verify(r => r.DeleteByUserAsync(_userId), Times.Once);
         _goalRepo.Verify(r => r.DeleteByUserAsync(_userId), Times.Once);
         _ruleRepo.Verify(r => r.DeleteByUserAsync(_userId), Times.Once);
+        _cardRepo.Verify(r => r.DeleteByUserAsync(_userId), Times.Once);
         _userRepo.Verify(r => r.UpdateProfileAsync(It.Is<UserEntity>(u => u.Id == _userId && u.DailyBudget == 0)), Times.Once);
     }
 

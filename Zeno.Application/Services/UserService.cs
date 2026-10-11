@@ -17,6 +17,7 @@ public class UserService : IUserService
     private readonly ITagRepository _tagRepository;
     private readonly IGoalRepository _goalRepository;
     private readonly ICaptureRuleRepository _captureRuleRepository;
+    private readonly ICaptureCardRepository _captureCardRepository;
     private readonly IExchangeRateService _exchangeRateService;
 
     public UserService(
@@ -27,6 +28,7 @@ public class UserService : IUserService
         ITagRepository tagRepository,
         IGoalRepository goalRepository,
         ICaptureRuleRepository captureRuleRepository,
+        ICaptureCardRepository captureCardRepository,
         IExchangeRateService exchangeRateService)
     {
         _serviceProvider = serviceProvider;
@@ -36,6 +38,7 @@ public class UserService : IUserService
         _tagRepository = tagRepository;
         _goalRepository = goalRepository;
         _captureRuleRepository = captureRuleRepository;
+        _captureCardRepository = captureCardRepository;
         _exchangeRateService = exchangeRateService;
     }
 
@@ -113,6 +116,7 @@ public class UserService : IUserService
 
         // Rules first (they reference tags), then the data itself.
         await _captureRuleRepository.DeleteByUserAsync(userId);
+        await _captureCardRepository.DeleteByUserAsync(userId);
         await _entryRepository.DeleteByUserAsync(userId);
         await _tagRepository.DeleteByUserAsync(userId);
         await _monthlyExpenseCategoryRepository.DeleteByUserAsync(userId);

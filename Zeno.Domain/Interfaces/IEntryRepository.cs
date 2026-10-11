@@ -14,6 +14,9 @@ public interface IEntryRepository
     Task DeleteAsync(Guid id);
     Task ClearTagReferencesAsync(Guid tagId);
     Task DeleteByUserAsync(Guid userId);
+
+    /// <summary>Sets the kind of every entry captured from a card; returns how many changed.</summary>
+    Task<long> SetKindByCaptureCardAsync(Guid userId, Guid captureCardId, Zeno.Domain.Enum.EntryKind kind);
     Task<IEnumerable<EntryEntity>> GetRecurringByHouseAsync(Guid userId, Guid houseId);
     Task MultiplyValuesForUserAsync(Guid userId, decimal factor);
 }
