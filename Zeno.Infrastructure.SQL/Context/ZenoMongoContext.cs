@@ -67,6 +67,7 @@ public class ZenoMongoContext
                 cm.GetMemberMap(u => u.Email).SetSerializer(encryptedString);
                 cm.GetMemberMap(u => u.Phone).SetSerializer(encryptedString);
                 cm.GetMemberMap(u => u.Document).SetSerializer(encryptedString);
+                cm.GetMemberMap(u => u.AppleRefreshToken).SetSerializer(encryptedString);
                 cm.GetMemberMap(u => u.BirthDate).SetSerializer(new EncryptedNullableDateTimeSerializer(encryptionService));
             });
         }
