@@ -8,6 +8,7 @@ public interface IAuthService
     Task<AuthResponse> LoginAsync(LoginRequest request);
     Task<AuthResponse> RegisterAsync(RegisterRequest request);
     Task<AuthResponse> HandleOAuthCallbackAsync(string provider, string providerId, string email, string name);
+    Task<AuthResponse> LoginWithAppleAsync(AppleLoginRequest request);
     Task LogoutAsync(string token);
     Task<AuthResponse> RefreshTokenAsync(string refreshToken);
     string GetGoogleClientId();

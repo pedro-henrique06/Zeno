@@ -99,6 +99,7 @@ builder.Services.AddScoped<ISummaryService, SummaryService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAccountDeletionService, AccountDeletionService>();
 builder.Services.AddHttpClient<IExchangeRateService, ExchangeRateService>();
+builder.Services.AddHttpClient<IAppleIdentityTokenValidator, AppleIdentityTokenValidator>();
 builder.Services.AddScoped<IHouseService, HouseService>();
 builder.Services.AddScoped<IHouseBudgetService, HouseBudgetService>();
 builder.Services.AddScoped<IGoalService, GoalService>();

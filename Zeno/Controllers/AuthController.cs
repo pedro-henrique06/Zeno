@@ -153,6 +153,15 @@ public class AuthController : AppControllerBase
         return HandleAsync(() => _authService.LogoutAsync(token), Ok(new { message = "Logout realizado com sucesso." }));
     }
 
+    /// <summary>Sign in with Apple: the app sends the identity token from the native Apple sheet.</summary>
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimiting.Auth)]
+    [HttpPost("apple")]
+    public Task<IActionResult> LoginWithApple([FromBody] AppleLoginRequest request)
+    {
+        return HandleAsync(() => _authService.LoginWithAppleAsync(request), data => Ok(data));
+    }
+
     /// <summary>Wipes the signed-in user's financial data and keeps the account (see IUserService.ResetAccount).</summary>
     [HttpPost("reset-account")]
     public Task<IActionResult> ResetAccount()
