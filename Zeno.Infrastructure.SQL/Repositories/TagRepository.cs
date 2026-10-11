@@ -43,4 +43,9 @@ public class TagRepository : ITagRepository
     {
         await _context.Tags.DeleteOneAsync(x => x.Id == id);
     }
+
+    public async Task DeleteByUserAsync(Guid userId)
+    {
+        await _context.Tags.DeleteManyAsync(x => x.UserId == userId);
+    }
 }

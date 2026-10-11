@@ -9,4 +9,5 @@ public interface ITagRepository
     Task<TagEntity> CreateAsync(TagEntity tag);
     Task<TagEntity> UpdateAsync(TagEntity tag);
     Task DeleteAsync(Guid id);
+    Task DeleteByUserAsync(Guid userId);
 }

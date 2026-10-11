@@ -42,10 +42,12 @@ public class GoogleUserInfo
 public class AuthController : AppControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IUserService _userService;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, IUserService userService)
     {
         _authService = authService;
+        _userService = userService;
     }
 
     [AllowAnonymous]
@@ -149,6 +151,13 @@ public class AuthController : AppControllerBase
     {
         var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
         return HandleAsync(() => _authService.LogoutAsync(token), Ok(new { message = "Logout realizado com sucesso." }));
+    }
+
+    /// <summary>Wipes the signed-in user's financial data and keeps the account (see IUserService.ResetAccount).</summary>
+    [HttpPost("reset-account")]
+    public Task<IActionResult> ResetAccount()
+    {
+        return HandleAsync(() => _userService.ResetAccount(GetUserId()), NoContent());
     }
 
     [AllowAnonymous]

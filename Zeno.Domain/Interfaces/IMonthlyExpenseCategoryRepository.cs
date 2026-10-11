@@ -9,5 +9,6 @@ public interface IMonthlyExpenseCategoryRepository
     Task<MonthlyExpenseCategoryEntity> CreateAsync(MonthlyExpenseCategoryEntity category);
     Task<MonthlyExpenseCategoryEntity> UpdateAsync(MonthlyExpenseCategoryEntity category);
     Task DeleteAsync(Guid id);
+    Task DeleteByUserAsync(Guid userId);
     Task MultiplyAmountsForUserAsync(Guid userId, decimal factor);
 }

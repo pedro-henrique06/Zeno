@@ -14,6 +14,9 @@ public class UserService : IUserService
     private readonly IUserRepository _userRepository;
     private readonly IEntryRepository _entryRepository;
     private readonly IMonthlyExpenseCategoryRepository _monthlyExpenseCategoryRepository;
+    private readonly ITagRepository _tagRepository;
+    private readonly IGoalRepository _goalRepository;
+    private readonly ICaptureRuleRepository _captureRuleRepository;
     private readonly IExchangeRateService _exchangeRateService;
 
     public UserService(
@@ -21,12 +24,18 @@ public class UserService : IUserService
         IUserRepository userRepository,
         IEntryRepository entryRepository,
         IMonthlyExpenseCategoryRepository monthlyExpenseCategoryRepository,
+        ITagRepository tagRepository,
+        IGoalRepository goalRepository,
+        ICaptureRuleRepository captureRuleRepository,
         IExchangeRateService exchangeRateService)
     {
         _serviceProvider = serviceProvider;
         _userRepository = userRepository;
         _entryRepository = entryRepository;
         _monthlyExpenseCategoryRepository = monthlyExpenseCategoryRepository;
+        _tagRepository = tagRepository;
+        _goalRepository = goalRepository;
+        _captureRuleRepository = captureRuleRepository;
         _exchangeRateService = exchangeRateService;
     }
 
@@ -91,6 +100,27 @@ public class UserService : IUserService
 
         var newHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
         await _userRepository.UpdatePasswordAsync(userId, newHash);
+    }
+
+    public async Task ResetAccount(Guid userId)
+    {
+        var user = await _userRepository.GetByIdAsync(userId)
+            ?? throw new AppValidationException(new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new("UserId", "Usuário não encontrado.")
+                }));
+
+        // Rules first (they reference tags), then the data itself.
+        await _captureRuleRepository.DeleteByUserAsync(userId);
+        await _entryRepository.DeleteByUserAsync(userId);
+        await _tagRepository.DeleteByUserAsync(userId);
+        await _monthlyExpenseCategoryRepository.DeleteByUserAsync(userId);
+        await _goalRepository.DeleteByUserAsync(userId);
+
+        // The daily budget is the sum of the items just removed, so it goes back to zero with them.
+        user.DailyBudget = 0;
+        await _userRepository.UpdateProfileAsync(user);
     }
 
     public async Task<UserProfileResponse> UpdateDailyBudget(Guid userId, UpdateDailyBudgetRequest request)
