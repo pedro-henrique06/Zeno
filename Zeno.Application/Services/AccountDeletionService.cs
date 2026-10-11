@@ -15,6 +15,7 @@ public class AccountDeletionService : IAccountDeletionService
     private readonly INotificationPreferenceRepository _notificationPreferenceRepository;
     private readonly IHouseRepository _houseRepository;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly IPasswordResetCodeRepository _passwordResetCodeRepository;
 
     public AccountDeletionService(
         IUserService userService,
@@ -25,7 +26,8 @@ public class AccountDeletionService : IAccountDeletionService
         IPushSubscriptionRepository pushSubscriptionRepository,
         INotificationPreferenceRepository notificationPreferenceRepository,
         IHouseRepository houseRepository,
-        IRefreshTokenRepository refreshTokenRepository)
+        IRefreshTokenRepository refreshTokenRepository,
+        IPasswordResetCodeRepository passwordResetCodeRepository)
     {
         _userService = userService;
         _userRepository = userRepository;
@@ -36,6 +38,7 @@ public class AccountDeletionService : IAccountDeletionService
         _notificationPreferenceRepository = notificationPreferenceRepository;
         _houseRepository = houseRepository;
         _refreshTokenRepository = refreshTokenRepository;
+        _passwordResetCodeRepository = passwordResetCodeRepository;
     }
 
     public async Task DeleteAccountAsync(Guid userId)
@@ -58,6 +61,7 @@ public class AccountDeletionService : IAccountDeletionService
         await _houseRepository.RemoveMemberFromAllAsync(userId);
         await _houseRepository.DeleteByOwnerAsync(userId);
         await _refreshTokenRepository.DeleteByUserAsync(userId);
+        await _passwordResetCodeRepository.DeleteByUserAsync(userId);
 
         // Last, so a failure above leaves an account the user can still sign in to and retry.
         await _userRepository.DeleteAsync(userId);
