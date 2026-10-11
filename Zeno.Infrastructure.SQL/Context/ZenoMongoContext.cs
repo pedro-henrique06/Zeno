@@ -170,6 +170,13 @@ public class ZenoMongoContext
         await RefreshTokens.Indexes.CreateOneAsync(new CreateIndexModel<RefreshToken>(
             Builders<RefreshToken>.IndexKeys.Ascending(x => x.UserId)));
 
+        // Password reset codes: one per user, and Mongo drops each document once it expires (TTL).
+        await PasswordResetCodes.Indexes.CreateOneAsync(new CreateIndexModel<PasswordResetCode>(
+            Builders<PasswordResetCode>.IndexKeys.Ascending(x => x.UserId)));
+        await PasswordResetCodes.Indexes.CreateOneAsync(new CreateIndexModel<PasswordResetCode>(
+            Builders<PasswordResetCode>.IndexKeys.Ascending(x => x.ExpiresAt),
+            new CreateIndexOptions { ExpireAfter = TimeSpan.Zero }));
+
         await Tags.Indexes.CreateOneAsync(new CreateIndexModel<Tag>(
             Builders<Tag>.IndexKeys.Ascending(x => x.UserId)));
 
@@ -224,6 +231,7 @@ public class ZenoMongoContext
     public IMongoCollection<Entry> Entries => _database.GetCollection<Entry>("entries");
     public IMongoCollection<Tag> Tags => _database.GetCollection<Tag>("tags");
     public IMongoCollection<RefreshToken> RefreshTokens => _database.GetCollection<RefreshToken>("refreshtokens");
+    public IMongoCollection<PasswordResetCode> PasswordResetCodes => _database.GetCollection<PasswordResetCode>("passwordresetcodes");
     public IMongoCollection<MonthlyExpenseCategory> MonthlyExpenseCategories => _database.GetCollection<MonthlyExpenseCategory>("monthlyexpensecategories");
     public IMongoCollection<PushSubscription> PushSubscriptions => _database.GetCollection<PushSubscription>("pushsubscriptions");
     public IMongoCollection<House> Houses => _database.GetCollection<House>("houses");

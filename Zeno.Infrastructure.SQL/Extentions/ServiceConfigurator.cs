@@ -20,6 +20,7 @@ public static class ServiceConfigurator
         services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<IMonthlyExpenseCategoryRepository, MonthlyExpenseCategoryRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IPasswordResetCodeRepository, PasswordResetCodeRepository>();
         services.AddScoped<IPushSubscriptionRepository, PushSubscriptionRepository>();
         services.AddScoped<IHouseRepository, HouseRepository>();
         services.AddScoped<IGoalRepository, GoalRepository>();

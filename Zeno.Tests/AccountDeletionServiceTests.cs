@@ -18,6 +18,7 @@ public class AccountDeletionServiceTests
     private readonly Mock<INotificationPreferenceRepository> _prefRepo = new();
     private readonly Mock<IHouseRepository> _houseRepo = new();
     private readonly Mock<IRefreshTokenRepository> _refreshRepo = new();
+    private readonly Mock<IPasswordResetCodeRepository> _resetRepo = new();
     private readonly Guid _userId = Guid.NewGuid();
     private readonly List<string> _calls = new();
 
@@ -32,12 +33,13 @@ public class AccountDeletionServiceTests
         _houseRepo.Setup(r => r.RemoveMemberFromAllAsync(_userId)).Callback(() => _calls.Add("leaveHouses")).Returns(Task.CompletedTask);
         _houseRepo.Setup(r => r.DeleteByOwnerAsync(_userId)).Callback(() => _calls.Add("ownedHouses")).Returns(Task.CompletedTask);
         _refreshRepo.Setup(r => r.DeleteByUserAsync(_userId)).Callback(() => _calls.Add("sessions")).Returns(Task.CompletedTask);
+        _resetRepo.Setup(r => r.DeleteByUserAsync(_userId)).Callback(() => _calls.Add("resetCodes")).Returns(Task.CompletedTask);
         _userRepo.Setup(r => r.DeleteAsync(_userId)).Callback(() => _calls.Add("user")).Returns(Task.CompletedTask);
     }
 
     private AccountDeletionService CreateService() =>
         new(_userService.Object, _userRepo.Object, _captureKeyRepo.Object, _widgetKeyRepo.Object, _deviceTokenRepo.Object,
-            _pushRepo.Object, _prefRepo.Object, _houseRepo.Object, _refreshRepo.Object);
+            _pushRepo.Object, _prefRepo.Object, _houseRepo.Object, _refreshRepo.Object, _resetRepo.Object);
 
     [Fact]
     public async Task DeleteAccount_RemovesEverything_AndTheUserLast()
@@ -47,7 +49,7 @@ public class AccountDeletionServiceTests
         await CreateService().DeleteAccountAsync(_userId);
 
         Assert.Equal(
-            new[] { "reset", "captureKey", "widgetKey", "devices", "push", "prefs", "leaveHouses", "ownedHouses", "sessions", "user" },
+            new[] { "reset", "captureKey", "widgetKey", "devices", "push", "prefs", "leaveHouses", "ownedHouses", "sessions", "resetCodes", "user" },
             _calls);
     }
 

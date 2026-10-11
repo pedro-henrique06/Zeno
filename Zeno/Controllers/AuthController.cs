@@ -43,11 +43,13 @@ public class AuthController : AppControllerBase
 {
     private readonly IAuthService _authService;
     private readonly IUserService _userService;
+    private readonly IPasswordResetService _passwordResetService;
 
-    public AuthController(IAuthService authService, IUserService userService)
+    public AuthController(IAuthService authService, IUserService userService, IPasswordResetService passwordResetService)
     {
         _authService = authService;
         _userService = userService;
+        _passwordResetService = passwordResetService;
     }
 
     [AllowAnonymous]
@@ -151,6 +153,25 @@ public class AuthController : AppControllerBase
     {
         var token = HttpContext.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
         return HandleAsync(() => _authService.LogoutAsync(token), Ok(new { message = "Logout realizado com sucesso." }));
+    }
+
+    /// <summary>Emails a reset code. Always the same answer, whether or not the email has an account.</summary>
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimiting.Auth)]
+    [HttpPost("forgot-password")]
+    public Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        return HandleAsync(() => _passwordResetService.RequestAsync(request),
+            Ok(new { message = "Se existir uma conta com esse e-mail, enviamos um código para ele." }));
+    }
+
+    /// <summary>Sets a new password with the emailed code.</summary>
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimiting.Auth)]
+    [HttpPost("reset-password")]
+    public Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        return HandleAsync(() => _passwordResetService.ResetAsync(request), NoContent());
     }
 
     /// <summary>Sign in with Apple: the app sends the identity token from the native Apple sheet.</summary>
