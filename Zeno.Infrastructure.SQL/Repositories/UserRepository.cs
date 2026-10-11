@@ -104,4 +104,9 @@ public class UserRepository : IUserRepository
             .Set(x => x.UpdatedAt, DateTime.UtcNow);
         await _context.Users.UpdateOneAsync(filter, update);
     }
+
+    public async Task DeleteAsync(Guid id)
+    {
+        await _context.Users.DeleteOneAsync(x => x.Id == id);
+    }
 }

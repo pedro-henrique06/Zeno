@@ -61,4 +61,16 @@ public class HouseRepository : IHouseRepository
         var update = Builders<HouseEntity>.Update.PullFilter(x => x.Members, m => m.UserId == memberId);
         await _context.Houses.UpdateOneAsync(filter, update);
     }
+
+    public async Task DeleteByOwnerAsync(Guid userId)
+    {
+        await _context.Houses.DeleteManyAsync(x => x.UserId == userId);
+    }
+
+    public async Task RemoveMemberFromAllAsync(Guid userId)
+    {
+        var filter = Builders<HouseEntity>.Filter.ElemMatch(x => x.Members, m => m.UserId == userId);
+        var update = Builders<HouseEntity>.Update.PullFilter(x => x.Members, m => m.UserId == userId);
+        await _context.Houses.UpdateManyAsync(filter, update);
+    }
 }

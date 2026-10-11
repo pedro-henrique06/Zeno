@@ -12,4 +12,5 @@ public interface IUserRepository
     Task<bool> EmailExistsForOtherUserAsync(string email, Guid userId);
     Task<UserEntity> UpdateProfileAsync(UserEntity user);
     Task UpdatePasswordAsync(Guid userId, string passwordHash);
+    Task DeleteAsync(Guid id);
 }

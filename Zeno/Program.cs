@@ -97,6 +97,7 @@ builder.Services.AddScoped<IMonthlyExpenseCategoryService, MonthlyExpenseCategor
 builder.Services.AddScoped<IBalanceService, BalanceService>();
 builder.Services.AddScoped<ISummaryService, SummaryService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IAccountDeletionService, AccountDeletionService>();
 builder.Services.AddHttpClient<IExchangeRateService, ExchangeRateService>();
 builder.Services.AddScoped<IHouseService, HouseService>();
 builder.Services.AddScoped<IHouseBudgetService, HouseBudgetService>();

@@ -9,4 +9,5 @@ public interface IRefreshTokenRepository
     Task<RefreshTokenEntity> CreateAsync(RefreshTokenEntity refreshToken);
     Task RevokeAsync(Guid userId, string token);
     Task RevokeAllUserTokensAsync(Guid userId);
+    Task DeleteByUserAsync(Guid userId);
 }

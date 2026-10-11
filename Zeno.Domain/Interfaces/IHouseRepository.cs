@@ -12,4 +12,10 @@ public interface IHouseRepository
     Task DeleteAsync(Guid id);
     Task AddMemberAsync(Guid houseId, HouseMember member);
     Task RemoveMemberAsync(Guid houseId, Guid memberId);
+
+    /// <summary>Deletes the houses the user owns (members lose access to them).</summary>
+    Task DeleteByOwnerAsync(Guid userId);
+
+    /// <summary>Removes the user from every house they are a member of.</summary>
+    Task RemoveMemberFromAllAsync(Guid userId);
 }

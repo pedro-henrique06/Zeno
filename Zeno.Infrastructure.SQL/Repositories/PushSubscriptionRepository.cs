@@ -35,4 +35,9 @@ public class PushSubscriptionRepository : IPushSubscriptionRepository
     {
         await _context.PushSubscriptions.DeleteOneAsync(x => x.Endpoint == endpoint);
     }
+
+    public async Task DeleteByUserAsync(Guid userId)
+    {
+        await _context.PushSubscriptions.DeleteManyAsync(x => x.UserId == userId);
+    }
 }

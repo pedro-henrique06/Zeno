@@ -52,4 +52,9 @@ public class NotificationPreferenceRepository : INotificationPreferenceRepositor
         var update = Builders<NotificationPreference>.Update.Set(x => x.LastSentOn, localDate);
         await _context.NotificationPreferences.UpdateOneAsync(x => x.UserId == userId, update);
     }
+
+    public async Task DeleteByUserAsync(Guid userId)
+    {
+        await _context.NotificationPreferences.DeleteManyAsync(x => x.UserId == userId);
+    }
 }

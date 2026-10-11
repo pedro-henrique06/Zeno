@@ -60,4 +60,9 @@ public class DeviceTokenRepository : IDeviceTokenRepository
     {
         await _context.DeviceTokens.DeleteOneAsync(x => x.UserId == userId && x.Token == token);
     }
+
+    public async Task DeleteByUserAsync(Guid userId)
+    {
+        await _context.DeviceTokens.DeleteManyAsync(x => x.UserId == userId);
+    }
 }
