@@ -21,6 +21,9 @@ public class User
     public DateTime? BirthDate { get; set; }
     public OAuthProvider Provider { get; set; } = OAuthProvider.None;
     public string? ProviderId { get; set; }
+
+    /// <summary>Sign in with Apple refresh token, kept only to revoke it when the account is deleted.</summary>
+    public string? AppleRefreshToken { get; set; }
     public string? PasswordHash { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }

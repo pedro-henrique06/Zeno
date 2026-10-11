@@ -46,7 +46,8 @@ public class RefreshTokenHashingTests
             _tokenRepo.Object,
             config.Object,
             new Mock<ITokenBlacklistService>().Object,
-            new Mock<IAppleIdentityTokenValidator>().Object);
+            new Mock<IAppleIdentityTokenValidator>().Object,
+            new Mock<IAppleTokenService>().Object);
     }
 
     private RefreshToken Active(string storedToken) => new()

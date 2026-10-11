@@ -19,6 +19,7 @@ public class AccountDeletionServiceTests
     private readonly Mock<IHouseRepository> _houseRepo = new();
     private readonly Mock<IRefreshTokenRepository> _refreshRepo = new();
     private readonly Mock<IPasswordResetCodeRepository> _resetRepo = new();
+    private readonly Mock<IAppleTokenService> _appleTokens = new();
     private readonly Guid _userId = Guid.NewGuid();
     private readonly List<string> _calls = new();
 
@@ -39,7 +40,7 @@ public class AccountDeletionServiceTests
 
     private AccountDeletionService CreateService() =>
         new(_userService.Object, _userRepo.Object, _captureKeyRepo.Object, _widgetKeyRepo.Object, _deviceTokenRepo.Object,
-            _pushRepo.Object, _prefRepo.Object, _houseRepo.Object, _refreshRepo.Object, _resetRepo.Object);
+            _pushRepo.Object, _prefRepo.Object, _houseRepo.Object, _refreshRepo.Object, _resetRepo.Object, _appleTokens.Object);
 
     [Fact]
     public async Task DeleteAccount_RemovesEverything_AndTheUserLast()
@@ -61,5 +62,37 @@ public class AccountDeletionServiceTests
         await Assert.ThrowsAsync<AppValidationException>(() => CreateService().DeleteAccountAsync(_userId));
 
         Assert.Empty(_calls);
+    }
+
+    [Fact]
+    public async Task DeleteAccount_AppleUser_RevokesAtApple_BeforeDeletingTheUser()
+    {
+        _userRepo.Setup(r => r.GetByIdAsync(_userId)).ReturnsAsync(new UserEntity { Id = _userId, AppleRefreshToken = "apple-rt" });
+        _appleTokens.Setup(a => a.RevokeAsync("apple-rt")).Callback(() => _calls.Add("revokeApple")).ReturnsAsync(true);
+
+        await CreateService().DeleteAccountAsync(_userId);
+
+        Assert.True(_calls.IndexOf("revokeApple") < _calls.IndexOf("user"));
+    }
+
+    [Fact]
+    public async Task DeleteAccount_FailedAppleRevoke_StillDeletesEverything()
+    {
+        _userRepo.Setup(r => r.GetByIdAsync(_userId)).ReturnsAsync(new UserEntity { Id = _userId, AppleRefreshToken = "apple-rt" });
+        _appleTokens.Setup(a => a.RevokeAsync("apple-rt")).ReturnsAsync(false);
+
+        await CreateService().DeleteAccountAsync(_userId);
+
+        Assert.Equal("user", _calls[^1]);
+    }
+
+    [Fact]
+    public async Task DeleteAccount_WithoutAppleToken_DoesNotCallApple()
+    {
+        _userRepo.Setup(r => r.GetByIdAsync(_userId)).ReturnsAsync(new UserEntity { Id = _userId });
+
+        await CreateService().DeleteAccountAsync(_userId);
+
+        _appleTokens.Verify(a => a.RevokeAsync(It.IsAny<string>()), Times.Never);
     }
 }

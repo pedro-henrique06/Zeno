@@ -113,6 +113,7 @@ public class AppleLoginTests
     private readonly Mock<IUserRepository> _userRepo = new();
     private readonly Mock<IRefreshTokenRepository> _tokenRepo = new();
     private readonly Mock<IAppleIdentityTokenValidator> _apple = new();
+    private readonly Mock<IAppleTokenService> _appleTokens = new();
 
     public AppleLoginTests()
     {
@@ -138,7 +139,8 @@ public class AppleLoginTests
             _tokenRepo.Object,
             config.Object,
             new Mock<ITokenBlacklistService>().Object,
-            _apple.Object);
+            _apple.Object,
+            _appleTokens.Object);
     }
 
     [Fact]
@@ -172,5 +174,68 @@ public class AppleLoginTests
 
         await Assert.ThrowsAsync<AppValidationException>(() => CreateService().LoginWithAppleAsync(new AppleLoginRequest { IdentityToken = "tok" }));
         _userRepo.Verify(r => r.CreateAsync(It.IsAny<User>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task AuthorizationCode_IsTradedForAppleRefreshToken_AndStored()
+    {
+        _appleTokens.Setup(a => a.ExchangeCodeAsync("code-1")).ReturnsAsync("apple-rt");
+
+        await CreateService().LoginWithAppleAsync(new AppleLoginRequest { IdentityToken = "tok", AuthorizationCode = "code-1" });
+
+        _userRepo.Verify(r => r.UpdateProfileAsync(It.Is<User>(u => u.AppleRefreshToken == "apple-rt")), Times.Once);
+    }
+
+    [Fact]
+    public async Task FailedCodeExchange_StillSignsIn()
+    {
+        _appleTokens.Setup(a => a.ExchangeCodeAsync("code-1")).ReturnsAsync((string?)null);
+
+        var result = await CreateService().LoginWithAppleAsync(new AppleLoginRequest { IdentityToken = "tok", AuthorizationCode = "code-1" });
+
+        Assert.False(string.IsNullOrEmpty(result.Token));
+        _userRepo.Verify(r => r.UpdateProfileAsync(It.IsAny<User>()), Times.Never);
+    }
+}
+
+public class AppleTokenServiceTests
+{
+    [Fact]
+    public void ClientSecret_IsAnEs256Jwt_SignedWithTheConfiguredKey()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var config = new Mock<IConfiguration>();
+        config.Setup(c => c["OAuth:Apple:TeamId"]).Returns("TEAM123456");
+        config.Setup(c => c["OAuth:Apple:KeyId"]).Returns("KEY1234567");
+        // On one line with literal "\n", the way an env var carries the .p8.
+        config.Setup(c => c["OAuth:Apple:PrivateKey"]).Returns(key.ExportPkcs8PrivateKeyPem().Replace("\n", "\\n"));
+        var clock = new Mock<IClock>();
+        clock.Setup(c => c.UtcNow).Returns(DateTime.UtcNow);
+        var service = new AppleTokenService(new HttpClient(), config.Object, clock.Object);
+
+        Assert.True(service.IsConfigured);
+        var jwt = service.CreateClientSecret();
+
+        var handler = new JwtSecurityTokenHandler();
+        handler.ValidateToken(jwt, new TokenValidationParameters
+        {
+            ValidIssuer = "TEAM123456",
+            ValidAudience = "https://appleid.apple.com",
+            IssuerSigningKey = new ECDsaSecurityKey(ECDsa.Create(key.ExportParameters(false))),
+        }, out var validated);
+        var token = (JwtSecurityToken)validated;
+        Assert.Equal("ES256", token.Header.Alg);
+        Assert.Equal("KEY1234567", token.Header.Kid);
+        Assert.Equal("app.zeno.mobile", token.Subject);
+    }
+
+    [Fact]
+    public async Task WithoutConfiguration_DoesNothing()
+    {
+        var service = new AppleTokenService(new HttpClient(), new Mock<IConfiguration>().Object, new Mock<IClock>().Object);
+
+        Assert.False(service.IsConfigured);
+        Assert.Null(await service.ExchangeCodeAsync("code"));
+        Assert.False(await service.RevokeAsync("rt"));
     }
 }

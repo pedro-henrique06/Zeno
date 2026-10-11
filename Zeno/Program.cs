@@ -102,6 +102,7 @@ builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddHttpClient<IExchangeRateService, ExchangeRateService>();
 builder.Services.AddHttpClient<IAppleIdentityTokenValidator, AppleIdentityTokenValidator>();
 builder.Services.AddHttpClient<IEmailSender, ResendEmailSender>();
+builder.Services.AddHttpClient<IAppleTokenService, AppleTokenService>();
 builder.Services.AddScoped<IHouseService, HouseService>();
 builder.Services.AddScoped<IHouseBudgetService, HouseBudgetService>();
 builder.Services.AddScoped<IGoalService, GoalService>();

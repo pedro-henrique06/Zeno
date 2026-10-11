@@ -25,6 +25,7 @@ public class AuthService : IAuthService
     private readonly IConfiguration _configuration;
     private readonly ITokenBlacklistService _tokenBlacklistService;
     private readonly IAppleIdentityTokenValidator _appleTokenValidator;
+    private readonly IAppleTokenService _appleTokenService;
 
     public AuthService(
         IValidator<LoginRequest> loginValidator,
@@ -33,7 +34,8 @@ public class AuthService : IAuthService
         IRefreshTokenRepository refreshTokenRepository,
         IConfiguration configuration,
         ITokenBlacklistService tokenBlacklistService,
-        IAppleIdentityTokenValidator appleTokenValidator)
+        IAppleIdentityTokenValidator appleTokenValidator,
+        IAppleTokenService appleTokenService)
     {
         _loginValidator = loginValidator;
         _registerValidator = registerValidator;
@@ -42,6 +44,7 @@ public class AuthService : IAuthService
         _configuration = configuration;
         _tokenBlacklistService = tokenBlacklistService;
         _appleTokenValidator = appleTokenValidator;
+        _appleTokenService = appleTokenService;
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
@@ -223,6 +226,18 @@ public class AuthService : IAuthService
             };
 
             await _userRepository.CreateAsync(user);
+        }
+
+        // Keep Apple's refresh token so deleting the account can revoke Sign in with Apple.
+        // Best effort: a failed exchange must never block the sign-in itself.
+        if (!string.IsNullOrWhiteSpace(request.AuthorizationCode))
+        {
+            var appleRefresh = await _appleTokenService.ExchangeCodeAsync(request.AuthorizationCode);
+            if (appleRefresh is not null && appleRefresh != user.AppleRefreshToken)
+            {
+                user.AppleRefreshToken = appleRefresh;
+                await _userRepository.UpdateProfileAsync(user);
+            }
         }
 
         var (token, refreshToken) = await GenerateTokensAsync(user);
