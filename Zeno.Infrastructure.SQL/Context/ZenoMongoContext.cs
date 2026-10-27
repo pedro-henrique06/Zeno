@@ -32,6 +32,16 @@ public class ZenoMongoContext
         BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
         BsonSerializer.RegisterSerializer(typeof(Currency), new EnumSerializer<Currency>(BsonType.String));
         BsonSerializer.RegisterSerializer(typeof(Language), new EnumSerializer<Language>(BsonType.String));
+
+        if (!BsonClassMap.IsClassMapRegistered(typeof(NotificationPreference)))
+        {
+            BsonClassMap.RegisterClassMap<NotificationPreference>(cm =>
+            {
+                cm.AutoMap();
+                // Keyed by UserId with no Id property, but the upsert still makes Mongo add an ObjectId _id.
+                cm.SetIgnoreExtraElements(true);
+            });
+        }
     }
 
     public ZenoMongoContext(string connectionString, IEncryptionService encryptionService, string databaseName = "zeno_db")
