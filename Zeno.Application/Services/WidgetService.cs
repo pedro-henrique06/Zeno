@@ -74,7 +74,12 @@ public class WidgetService : IWidgetService
         if (record is null)
             return null;
 
-        var user = await _userRepository.GetByIdAsync(record.UserId);
+        return await GetSummaryForUserAsync(record.UserId, timeZoneId);
+    }
+
+    public async Task<WidgetSummaryResponse?> GetSummaryForUserAsync(Guid userId, string? timeZoneId)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
         if (user is null)
             return null;
 

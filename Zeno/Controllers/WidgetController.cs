@@ -58,4 +58,16 @@ public class WidgetController : AppControllerBase
         Response.Headers.CacheControl = "no-store";
         return Ok(ApiResponse<WidgetSummaryResponse>.Ok(result));
     }
+
+    /// <summary>O mesmo resumo para o widget nativo do app, autenticado pelo login normal (JWT).</summary>
+    [HttpGet("summary/me")]
+    public async Task<IActionResult> GetMySummary([FromQuery] string? tz)
+    {
+        var result = await _service.GetSummaryForUserAsync(GetUserId(), tz);
+        if (result is null)
+            return Unauthorized();
+
+        Response.Headers.CacheControl = "no-store";
+        return Ok(ApiResponse<WidgetSummaryResponse>.Ok(result));
+    }
 }

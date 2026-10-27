@@ -158,6 +158,26 @@ public class WidgetServiceTests
     }
 
     [Fact]
+    public async Task GetSummaryForUser_ReturnsSummaryWithoutKey()
+    {
+        _clock.UtcNow = new DateTime(2026, 10, 4, 2, 0, 0, DateTimeKind.Utc);
+
+        var result = await CreateService().GetSummaryForUserAsync(_userId, null);
+
+        Assert.NotNull(result);
+        Assert.Equal(10, result!.Month);
+        Assert.Equal(2480m, result.MonthBalance);
+        Assert.Equal(100m, result.AvailableToday);
+        _keyRepo.Verify(r => r.GetByHashAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetSummaryForUser_UnknownUser_ReturnsNull()
+    {
+        Assert.Null(await CreateService().GetSummaryForUserAsync(Guid.NewGuid(), null));
+    }
+
+    [Fact]
     public async Task RevokeKey_DeletesByUser()
     {
         await CreateService().RevokeKeyAsync(_userId);
