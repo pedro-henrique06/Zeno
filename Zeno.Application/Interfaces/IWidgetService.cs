@@ -13,4 +13,7 @@ public interface IWidgetService
 
     /// <summary>Resumo do usuário dono da chave; null se a chave for inválida ou revogada.</summary>
     Task<WidgetSummaryResponse?> GetSummaryAsync(string? key, string? timeZoneId);
+
+    /// <summary>Mesmo resumo para o usuário logado (widget nativo do app); null se o usuário não existir.</summary>
+    Task<WidgetSummaryResponse?> GetSummaryForUserAsync(Guid userId, string? timeZoneId);
 }
